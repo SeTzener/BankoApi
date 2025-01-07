@@ -2,7 +2,26 @@
 # Il file gitignore è stato creato automaticamente da Microsoft(R) Visual Studio.
 ################################################################################
 
+################################################################################
+# Il file gitignore è stato creato automaticamente da Microsoft(R) Visual Studio.
+################################################################################
+
 /.vs/BankoApi
 /BankoApi/obj/*
 /.vs/ProjectEvaluation
 /BankoApi/bin/Debug/net9.0
+.env
+# Default ignored files
+/shelf/
+/workspace.xml
+# Rider ignored files
+/.idea.BankoApi.iml
+/contentModel.xml
+/projectSettingsUpdater.xml
+/modules.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+
