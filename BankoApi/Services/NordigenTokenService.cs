@@ -14,6 +14,8 @@ public class NordigenTokenService
         _httpClient = httpClient;
         _configuration = configuration;
         _logger = logger;
+        _accessToken = "";
+        _tokenExpiry = DateTime.UtcNow;
     }
 
     public async Task<string> GetAccessTokenAsync()

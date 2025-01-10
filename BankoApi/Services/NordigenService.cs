@@ -5,9 +5,9 @@ namespace BankoApi.Services;
 
 public class NordigenService
 {
-    private readonly HttpClient _httpClient;
-    private readonly NordigenTokenService _tokenService;
-    private readonly ILogger<NordigenService> _logger;
+    private HttpClient _httpClient;
+    private NordigenTokenService _tokenService;
+    private ILogger<NordigenService> _logger;
     
     public NordigenService(HttpClient httpClient, NordigenTokenService tokenService, ILogger<NordigenService> logger)
     {
