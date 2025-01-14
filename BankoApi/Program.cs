@@ -1,4 +1,6 @@
+using BankoApi.Data;
 using BankoApi.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,16 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+builder.Services.AddDbContext<BankoDbContext>(options =>
+{
+    var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
+    var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
+    var connectionString =
+        $"Server=localhost,1433;Database=BankoDb;User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
+    options.UseSqlServer(connectionString);
+});
+
 builder.Services.AddHttpClient<NordigenTokenService>(client =>
 {
     client.BaseAddress =
