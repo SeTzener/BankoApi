@@ -6,7 +6,7 @@ namespace BankoApi.Data;
 
 public class BankoDbContext : DbContext
 {
-    public DbSet<Institution> Institutions { get; set; }
+    public DbSet<Institutions> Institutions { get; set; }
     public DbSet<Balance> Balances { get; set; }
     public DbSet<Requisition> Requisitions { get; set; }
     public DbSet<Transactions> Transactions { get; set; }
@@ -19,6 +19,7 @@ public class BankoDbContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
+            Env.Load();
             // Optional: If configuration via `AddDbContext` is not available, use fallback logic
             var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
             var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";

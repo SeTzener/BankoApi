@@ -2,7 +2,7 @@ namespace BankoApi.Data.Dao;
 
 using System.Collections.Generic;
 
-public class Institution
+public class Institutions
 {
     public string Id { get; set; }
     public string Name { get; set; }

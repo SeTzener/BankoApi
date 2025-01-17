@@ -1,6 +1,7 @@
 using BankoApi.Data;
 using BankoApi.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,14 +20,19 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     options.UseSqlServer(connectionString);
 });
 
+string baseUrl = builder.Configuration["NordigenAPI:BaseUrl"];
+string version = builder.Configuration["NordigenAPI:version"];
+    
 builder.Services.AddHttpClient<NordigenTokenService>(client =>
 {
-    client.BaseAddress =
-        new Uri(builder.Configuration["NordigenAPI:BaseUrl"] + builder.Configuration["NordigenAPI:version"]);
+    client.BaseAddress = new Uri(new Uri(baseUrl), version); ;
 });
 builder.Services.AddHttpClient<NordigenService>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["NordigenAPI:BaseUrl"] + builder.Configuration["NordigenAPI:version"]);
+    client.BaseAddress = new Uri(new Uri(baseUrl),  version);
+    client.DefaultRequestHeaders.Accept.Add(
+     new MediaTypeWithQualityHeaderValue("application/json"));
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Banko/1.0");
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

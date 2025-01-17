@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using BankoApi.Data.Dao;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace BankoApi.Services;
 
@@ -17,26 +18,35 @@ public class NordigenService
     }
 
     // TODO():Change this Transactions from DAO to a Model dto
-    public async Task<List<Transactions>> GetTransactionsAsync(string accountId)
+    public async Task<Transactions?> GetTransactionsAsync(string accountId)
     {
         // TODO(): Manage failures
         var token = await _tokenService.GetAccessTokenAsync();
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync($"accounts/{accountId}/transactions");
+        var response = await _httpClient.GetAsync($"accounts/{accountId}/transactions/");
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<NordigenTransactionResponse>();
-        return result?.Transactions.Select(t => new Transactions
-        {
-            BankTransactions = t.BankTransactions
-        }).ToList() ?? new List<Transactions>();
+        return result?.Transactions;
+    }
+
+    public async Task<List<Institutions>> GetInstitutions()
+    {
+        var token = await _tokenService.GetAccessTokenAsync();
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.GetAsync($"institutions/?country=it");
+        response.EnsureSuccessStatusCode();
+
+        return new List<Institutions>{ };
     }
 }
 
 // TODO(): This response has to be written better
 public class NordigenTransactionResponse
 {
-    public List<Transactions> Transactions { get; set; }
+    public Transactions Transactions { get; set; }
 }

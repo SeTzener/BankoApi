@@ -1,3 +1,5 @@
+using DotNetEnv;
+
 namespace BankoApi.Services;
 
 public class NordigenTokenService
@@ -27,23 +29,27 @@ public class NordigenTokenService
             return _accessToken;
         }
 
+        Env.Load();
+
         // Otherwise, retrieve a new token
         _logger.LogInformation("Retrieving new token from Nordigen.");
-        var secretId = _configuration["NordigenAPI:SecretId"];
-        var secretKey = _configuration["NordigenAPI:SecretKey"];
+        var secretId = Environment.GetEnvironmentVariable("NORDIGEN_ID") ?? "";
+        var secretKey = Environment.GetEnvironmentVariable("NORDIGEN_KEY") ?? "";
 
         if (string.IsNullOrEmpty(secretId) || string.IsNullOrEmpty(secretKey))
         {
             throw new InvalidOperationException("Nordigen credentials are not configured.");
         }
 
-        var response = await _httpClient.PostAsJsonAsync("token/new/", new
+        var response = await _httpClient.PostAsJsonAsync(
+            requestUri: "token/new/", 
+            value: new
         {
             secret_id = secretId,
             secret_key = secretKey
         });
 
-        response.EnsureSuccessStatusCode();
+           response.EnsureSuccessStatusCode();
 
         var tokenResponse = await response.Content.ReadFromJsonAsync<NordigenTokenResponse>();
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.Access))
