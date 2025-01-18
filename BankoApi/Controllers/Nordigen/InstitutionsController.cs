@@ -21,7 +21,7 @@ public class InstitutionsController : ControllerBase
     public async Task<IActionResult> GetInstitutionsAsync()
     {
         var institutions = await _nordigenService.GetInstitutions();
-        return Ok("Transaction failed succesfully");
+        return Ok(institutions);
     }
 }
 

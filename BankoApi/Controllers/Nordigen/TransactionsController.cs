@@ -1,7 +1,6 @@
 using BankoApi.Data;
 using BankoApi.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Controllers.Nordigen;
 

@@ -28,8 +28,7 @@ public class NordigenService
         var response = await _httpClient.GetAsync($"accounts/{accountId}/transactions/");
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<NordigenTransactionResponse>();
-        return result?.Transactions;
+        return await response.Content.ReadFromJsonAsync<Transactions>();
     }
 
     public async Task<List<Institutions>> GetInstitutions()
@@ -40,13 +39,6 @@ public class NordigenService
 
         var response = await _httpClient.GetAsync($"institutions/?country=it");
         response.EnsureSuccessStatusCode();
-
-        return new List<Institutions>{ };
+        return response.Content.ReadFromJsonAsync<List<Institutions>>().Result ?? new List<Institutions>();
     }
-}
-
-// TODO(): This response has to be written better
-public class NordigenTransactionResponse
-{
-    public Transactions Transactions { get; set; }
 }
