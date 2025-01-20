@@ -25,7 +25,7 @@ namespace BankoApi.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Balance", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Balance", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -49,7 +49,7 @@ namespace BankoApi.Migrations
                     b.ToTable("Balances");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.BankTransactions", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.BankTransactions", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -64,7 +64,7 @@ namespace BankoApi.Migrations
                     b.HasAnnotation("Relational:JsonPropertyName", "transactions");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Booked", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Booked", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -134,7 +134,7 @@ namespace BankoApi.Migrations
                     b.ToTable("Booked");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.CreditorAccount", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.CreditorAccount", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -155,7 +155,7 @@ namespace BankoApi.Migrations
                     b.ToTable("CreditorAccount");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.DebtorAccount", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.DebtorAccount", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -176,7 +176,7 @@ namespace BankoApi.Migrations
                     b.ToTable("DebtorAccount");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Institution", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Institution", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
@@ -208,7 +208,7 @@ namespace BankoApi.Migrations
                     b.ToTable("Institutions");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Pending", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Pending", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -243,7 +243,7 @@ namespace BankoApi.Migrations
                     b.ToTable("Pending");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Requisition", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Requisition", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
@@ -298,7 +298,7 @@ namespace BankoApi.Migrations
                     b.ToTable("Requisitions");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.TransactionAmount", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.TransactionAmount", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -319,7 +319,7 @@ namespace BankoApi.Migrations
                     b.ToTable("TransactionAmount");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Transactions", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Transactions", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -337,21 +337,21 @@ namespace BankoApi.Migrations
                     b.ToTable("Transactions");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Booked", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Booked", b =>
                 {
-                    b.HasOne("BankoApi.Data.Nordigen.BankTransactions", null)
+                    b.HasOne("BankoApi.Data.GoCardless.BankTransactions", null)
                         .WithMany("Booked")
                         .HasForeignKey("BankTransactionsId");
 
-                    b.HasOne("BankoApi.Data.Nordigen.CreditorAccount", "CreditorAccount")
+                    b.HasOne("BankoApi.Data.GoCardless.CreditorAccount", "CreditorAccount")
                         .WithMany()
                         .HasForeignKey("CreditorAccountId");
 
-                    b.HasOne("BankoApi.Data.Nordigen.DebtorAccount", "DebtorAccount")
+                    b.HasOne("BankoApi.Data.GoCardless.DebtorAccount", "DebtorAccount")
                         .WithMany()
                         .HasForeignKey("DebtorAccountId");
 
-                    b.HasOne("BankoApi.Data.Nordigen.TransactionAmount", "TransactionAmount")
+                    b.HasOne("BankoApi.Data.GoCardless.TransactionAmount", "TransactionAmount")
                         .WithMany()
                         .HasForeignKey("TransactionAmountId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -364,13 +364,13 @@ namespace BankoApi.Migrations
                     b.Navigation("TransactionAmount");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Pending", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Pending", b =>
                 {
-                    b.HasOne("BankoApi.Data.Nordigen.BankTransactions", null)
+                    b.HasOne("BankoApi.Data.GoCardless.BankTransactions", null)
                         .WithMany("Pending")
                         .HasForeignKey("BankTransactionsId");
 
-                    b.HasOne("BankoApi.Data.Nordigen.TransactionAmount", "TransactionAmount")
+                    b.HasOne("BankoApi.Data.GoCardless.TransactionAmount", "TransactionAmount")
                         .WithMany()
                         .HasForeignKey("TransactionAmountId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -379,9 +379,9 @@ namespace BankoApi.Migrations
                     b.Navigation("TransactionAmount");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.Transactions", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.Transactions", b =>
                 {
-                    b.HasOne("BankoApi.Data.Nordigen.BankTransactions", "BankTransactions")
+                    b.HasOne("BankoApi.Data.GoCardless.BankTransactions", "BankTransactions")
                         .WithMany()
                         .HasForeignKey("BankTransactionsId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -390,7 +390,7 @@ namespace BankoApi.Migrations
                     b.Navigation("BankTransactions");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Nordigen.BankTransactions", b =>
+            modelBuilder.Entity("BankoApi.Data.GoCardless.BankTransactions", b =>
                 {
                     b.Navigation("Booked");
 
