@@ -2,6 +2,7 @@ using BankoApi.Data;
 using BankoApi.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
+using BankoApi;
 using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,15 +16,17 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {
     Env.Load();
-    var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
-    var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
-    var connectionString =
-        $"Server=localhost,1433;Database=BankoDb;User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
+    String db = Utils.SelectDatabase(builder);
+    String baseUrl = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_IP") ?? throw new Exception("GoogleCloud BaseUrl is missing");
+    String dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
+    String dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
+    String connectionString =
+        $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
     options.UseSqlServer(connectionString);
 });
 
-string baseUrl = builder.Configuration["NordigenAPI:BaseUrl"];
-string version = builder.Configuration["NordigenAPI:version"];
+String baseUrl = builder.Configuration["NordigenAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
+String version = builder.Configuration["NordigenAPI:version"] ?? throw new Exception("GoCadless API version is missing");
     
 builder.Services.AddHttpClient<NordigenTokenService>(client =>
 {
