@@ -3,6 +3,7 @@ using BankoApi.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
 using BankoApi;
+using BankoApi.Controllers.GoCardless;
 using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,8 +41,13 @@ builder.Services.AddHttpClient<GoCardlessService>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Banko/1.0");
 });
 
+builder.Services.AddScoped<InstitutionsController>();
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Register the background service
+builder.Services.AddHostedService<ScheduledTaskService>();
 
 var app = builder.Build();
 

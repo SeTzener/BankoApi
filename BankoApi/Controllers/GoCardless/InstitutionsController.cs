@@ -18,7 +18,7 @@ public class InstitutionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetInstitutionsAsync()
+    public async Task<IActionResult> FetchInstitutionsAsync()
     {
         var institutions = await _goCardlessService.GetInstitutions();
         foreach (var institution in institutions)
