@@ -1,2 +1,4 @@
 DB_USER=<db username>
 DB_PASS=<db password>
+NORDIGEN_ID=<Nordigen secret ID for token>
+NORDIGEN_KEY=<Nordigen secret key for token>
