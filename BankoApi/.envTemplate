@@ -1,4 +1,5 @@
 DB_USER=<db username>
 DB_PASS=<db password>
+GOOGLE_CLOUD_IP=<0.0.0.0>
 NORDIGEN_ID=<Nordigen secret ID for token>
 NORDIGEN_KEY=<Nordigen secret key for token>
