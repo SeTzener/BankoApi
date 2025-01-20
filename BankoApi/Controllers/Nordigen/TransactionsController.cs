@@ -22,7 +22,7 @@ public class TransactionsController : ControllerBase
     {
         // Fetch transactions from Nordigen
         var transactions = await _nordigenService.GetTransactionsAsync(accountId);
-
+        
         // Store in database
         _dbContext.Transactions.Add(transactions);
 

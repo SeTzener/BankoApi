@@ -21,6 +21,12 @@ public class InstitutionsController : ControllerBase
     public async Task<IActionResult> GetInstitutionsAsync()
     {
         var institutions = await _nordigenService.GetInstitutions();
+        foreach (var institution in institutions)
+        {
+            _dbContext.Institutions.Add(institution);    
+        }
+        
+        await _dbContext.SaveChangesAsync();
         return Ok(institutions);
     }
 }

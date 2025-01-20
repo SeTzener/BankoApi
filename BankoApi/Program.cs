@@ -2,6 +2,7 @@ using BankoApi.Data;
 using BankoApi.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {
+    Env.Load();
     var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
     var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
     var connectionString =
