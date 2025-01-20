@@ -4,13 +4,13 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace BankoApi.Services;
 
-public class NordigenService
+public class GoCardlessService
 {
     private HttpClient _httpClient;
-    private NordigenTokenService _tokenService;
-    private ILogger<NordigenService> _logger;
+    private GoCardlessTokenService _tokenService;
+    private ILogger<GoCardlessService> _logger;
     
-    public NordigenService(HttpClient httpClient, NordigenTokenService tokenService, ILogger<NordigenService> logger)
+    public GoCardlessService(HttpClient httpClient, GoCardlessTokenService tokenService, ILogger<GoCardlessService> logger)
     {
         _httpClient = httpClient; 
         _tokenService = tokenService;

@@ -2,25 +2,25 @@
 using BankoApi.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BankoApi.Controllers.Nordigen;
+namespace BankoApi.Controllers.GoCardless;
 
 [ApiController]
 [Route("[controller]")]
 public class InstitutionsController : ControllerBase
 {
-    private readonly NordigenService _nordigenService;
+    private readonly GoCardlessService _goCardlessService;
     private readonly BankoDbContext _dbContext;
 
-    public InstitutionsController(NordigenService nordigenService, BankoDbContext dbContext)
+    public InstitutionsController(GoCardlessService goCardlessService, BankoDbContext dbContext)
     {
-        _nordigenService = nordigenService;
+        _goCardlessService = goCardlessService;
         _dbContext = dbContext;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetInstitutionsAsync()
     {
-        var institutions = await _nordigenService.GetInstitutions();
+        var institutions = await _goCardlessService.GetInstitutions();
         foreach (var institution in institutions)
         {
             _dbContext.Institutions.Add(institution);    

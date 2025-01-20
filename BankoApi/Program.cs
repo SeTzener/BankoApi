@@ -25,14 +25,14 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     options.UseSqlServer(connectionString);
 });
 
-String baseUrl = builder.Configuration["NordigenAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
-String version = builder.Configuration["NordigenAPI:version"] ?? throw new Exception("GoCadless API version is missing");
+String baseUrl = builder.Configuration["GoCardlessAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
+String version = builder.Configuration["GoCardlessAPI:version"] ?? throw new Exception("GoCadless API version is missing");
     
-builder.Services.AddHttpClient<NordigenTokenService>(client =>
+builder.Services.AddHttpClient<GoCardlessTokenService>(client =>
 {
     client.BaseAddress = new Uri(new Uri(baseUrl), version); ;
 });
-builder.Services.AddHttpClient<NordigenService>(client =>
+builder.Services.AddHttpClient<GoCardlessService>(client =>
 {
     client.BaseAddress = new Uri(new Uri(baseUrl),  version);
     client.DefaultRequestHeaders.Accept.Add(

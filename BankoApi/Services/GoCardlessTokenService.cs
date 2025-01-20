@@ -2,16 +2,16 @@ using DotNetEnv;
 
 namespace BankoApi.Services;
 
-public class NordigenTokenService
+public class GoCardlessTokenService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<NordigenTokenService> _logger;
+    private readonly ILogger<GoCardlessTokenService> _logger;
 
     private string _accessToken;
     private DateTime _tokenExpiry;
 
-    public NordigenTokenService(HttpClient httpClient, IConfiguration configuration, ILogger<NordigenTokenService> logger)
+    public GoCardlessTokenService(HttpClient httpClient, IConfiguration configuration, ILogger<GoCardlessTokenService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
@@ -32,13 +32,13 @@ public class NordigenTokenService
         Env.Load();
 
         // Otherwise, retrieve a new token
-        _logger.LogInformation("Retrieving new token from Nordigen.");
-        var secretId = Environment.GetEnvironmentVariable("NORDIGEN_ID") ?? "";
-        var secretKey = Environment.GetEnvironmentVariable("NORDIGEN_KEY") ?? "";
+        _logger.LogInformation("Retrieving new token from GoCardless.");
+        var secretId = Environment.GetEnvironmentVariable("GOCARDLESS_ID") ?? "";
+        var secretKey = Environment.GetEnvironmentVariable("GOCARDLESS_KEY") ?? "";
 
         if (string.IsNullOrEmpty(secretId) || string.IsNullOrEmpty(secretKey))
         {
-            throw new InvalidOperationException("Nordigen credentials are not configured.");
+            throw new InvalidOperationException("GoCardless credentials are not configured.");
         }
 
         var response = await _httpClient.PostAsJsonAsync(
@@ -51,10 +51,10 @@ public class NordigenTokenService
 
            response.EnsureSuccessStatusCode();
 
-        var tokenResponse = await response.Content.ReadFromJsonAsync<NordigenTokenResponse>();
+        var tokenResponse = await response.Content.ReadFromJsonAsync<GoCardlessTokenResponse>();
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.Access))
         {
-            throw new InvalidOperationException("Failed to retrieve Nordigen token.");
+            throw new InvalidOperationException("Failed to retrieve GoCardless token.");
         }
 
         _accessToken = tokenResponse.Access;
@@ -65,7 +65,7 @@ public class NordigenTokenService
     }
 }
 
-public class NordigenTokenResponse
+public class GoCardlessTokenResponse
 {
     public string Access { get; set; }
     public int Expires { get; set; } // Token expiry time in seconds
