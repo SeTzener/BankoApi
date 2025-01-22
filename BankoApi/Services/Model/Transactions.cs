@@ -7,6 +7,7 @@ namespace BankoApi.Services.Model;
 using TransactionDao = Transaction;
 using DebtorAccountDao = Data.Dao.DebtorAccount;
 using CreditorAccountDao = Data.Dao.CreditorAccount;
+using PendingDao = Data.Dao.Pending;
 
 public class Transactions
 {
@@ -64,11 +65,11 @@ public class Pending
 
 public static class TransactionsExtensions
 {
-    public static List<TransactionDao> ToDao(this Transactions transactions, BankoDbContext ctx)
+    public static List<TransactionDao> ToTransactionDao(this Transactions transactions, BankoDbContext ctx)
     {
         if (transactions.BankTransactions.Booked.Count == 0)
             // Handle the case where no booked transactions exist
-            return null;
+            return new List<TransactionDao>();
 
         return transactions.BankTransactions.Booked.ConvertAll(bookedTransaction =>
             new TransactionDao
@@ -93,6 +94,24 @@ public static class TransactionsExtensions
                     : null,
                 RemittanceInformationStructuredArray = bookedTransaction.RemittanceInformationStructuredArray
             });
+    }
+
+    public static List<PendingDao> ToPendingDao(this List<Pending> pendings)
+    {
+        if (!pendings.Any())
+            // Handle the case where no booked transactions exist
+            return new List<PendingDao>();
+
+        return pendings.ConvertAll(pendingTransaction =>
+            new PendingDao
+            {
+                BookingDate = pendingTransaction.BookingDate,
+                Amount = pendingTransaction.TransactionAmount.Amount,
+                Currency = pendingTransaction.TransactionAmount.Currency,
+                RemittanceInformationUnstructured = pendingTransaction.RemittanceInformationUnstructured,
+                RemittanceInformationUnstructuredArray = pendingTransaction.RemittanceInformationUnstructuredArray
+            }
+        );
     }
 
     private static Guid GetDebtorAccountId(this DebtorAccount debtorAccount, BankoDbContext ctx)
