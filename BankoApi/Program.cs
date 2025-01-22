@@ -1,15 +1,15 @@
-using BankoApi.Data;
-using BankoApi.Services;
-using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
 using BankoApi;
 using BankoApi.Controllers.GoCardless;
+using BankoApi.Data;
+using BankoApi.Services;
 using DotNetEnv;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuration setup (assuming IConfiguration is injected)
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+builder.Configuration.AddJsonFile("appsettings.json", false, true);
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -18,7 +18,8 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
 {
     Env.Load();
     String db = Utils.SelectDatabase(builder);
-    String baseUrl = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_IP") ?? throw new Exception("GoogleCloud BaseUrl is missing");
+    String baseUrl = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_IP") 
+                     ?? throw new Exception("GoogleCloud BaseUrl is missing");
     String dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
     String dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
     String connectionString =
@@ -31,13 +32,13 @@ String version = builder.Configuration["GoCardlessAPI:version"] ?? throw new Exc
     
 builder.Services.AddHttpClient<GoCardlessTokenService>(client =>
 {
-    client.BaseAddress = new Uri(new Uri(baseUrl), version); ;
+    client.BaseAddress = new Uri(new Uri(baseUrl), version);
 });
 builder.Services.AddHttpClient<GoCardlessService>(client =>
 {
-    client.BaseAddress = new Uri(new Uri(baseUrl),  version);
+    client.BaseAddress = new Uri(new Uri(baseUrl), version);
     client.DefaultRequestHeaders.Accept.Add(
-     new MediaTypeWithQualityHeaderValue("application/json"));
+        new MediaTypeWithQualityHeaderValue("application/json"));
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Banko/1.0");
 });
 
