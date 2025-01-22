@@ -6,14 +6,16 @@ namespace BankoApi.Data;
 
 public class BankoDbContext : DbContext
 {
-    public DbSet<Institutions> Institutions { get; set; }
-    public DbSet<Balance> Balances { get; set; }
-    public DbSet<Requisition> Requisitions { get; set; }
-    public DbSet<Transactions> Transactions { get; set; }
-
     public BankoDbContext(DbContextOptions<BankoDbContext> options) : base(options)
     {
     }
+
+    public DbSet<Institutions> Institutions { get; set; }
+    public DbSet<Balance> Balances { get; set; }
+    public DbSet<Requisition> Requisitions { get; set; }
+    public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<DebtorAccount> DebtorAccounts { get; set; }
+    public DbSet<Pending> Pendings { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
