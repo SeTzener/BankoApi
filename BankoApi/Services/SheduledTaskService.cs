@@ -1,17 +1,12 @@
 using BankoApi.Controllers.GoCardless;
+using DotNetEnv;
 
 namespace BankoApi.Services;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-
 public class ScheduledTaskService : BackgroundService
 {
+    private readonly TimeSpan _executionTime = new(08, 00, 00);
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TimeSpan _executionTime = new TimeSpan(13, 35, 00);
 
     public ScheduledTaskService(IServiceScopeFactory scopeFactory)
     {
@@ -20,26 +15,29 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        Env.Load();
+        // TODO(): Change this to retrieve a list of accountIDs from the database
+        var accountId = Environment.GetEnvironmentVariable("GOCARDLESS_ACCOUNT_ID") ??
+                        throw new Exception("Environment variable GOCARDLESS_ACCOUNT_ID not set");
         while (!stoppingToken.IsCancellationRequested)
         {
             var now = DateTime.UtcNow;
             var nextRun = DateTime.UtcNow.Date.Add(_executionTime);
-            
-            if (now > nextRun)
-            {
-                nextRun = nextRun.AddDays(1); // Ensure next run is tomorrow if current time passed the scheduled time
-            }
 
+            if (now > nextRun)
+                nextRun = nextRun.AddDays(1); // Ensure next run is tomorrow if current time passed the scheduled time
+
+            // Wait until the next scheduled time
             var delay = nextRun - now;
-            await Task.Delay(delay, stoppingToken); // Wait until the next scheduled time
+            await Task.Delay(delay, stoppingToken);
 
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                var institutionsController = scope.ServiceProvider.GetRequiredService<InstitutionsController>();
+                var transactionsController = scope.ServiceProvider.GetRequiredService<TransactionsController>();
 
-                
-                await institutionsController.FetchInstitutionsAsync(); // Trigger the endpoint
+                // Trigger the endpoint
+                await transactionsController.FetchAndStoreTransactions(accountId);
             }
             catch (Exception ex)
             {
