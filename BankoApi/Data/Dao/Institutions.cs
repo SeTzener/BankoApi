@@ -1,10 +1,8 @@
 namespace BankoApi.Data.Dao;
 
-using System.Collections.Generic;
-
 public class Institutions
 {
-    public string Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; }
     public string BIC { get; set; }
     public int TransactionTotalDays { get; set; }

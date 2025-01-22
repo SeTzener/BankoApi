@@ -1,11 +1,8 @@
 namespace BankoApi.Data.Dao;
 
-using System;
-using System.Collections.Generic;
-
 public class Requisition
 {
-    public string Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     public DateTime Created { get; set; }
     public string Redirect { get; set; }
     public string Status { get; set; }
