@@ -1,5 +1,9 @@
+using System.Text.Json;
 using BankoApi.Data;
+using BankoApi.Data.Dao;
+using BankoApi.Repository;
 using BankoApi.Services;
+using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankoApi.Controllers.GoCardless;
@@ -8,25 +12,26 @@ namespace BankoApi.Controllers.GoCardless;
 [Route("[controller]")]
 public class TransactionsController : ControllerBase
 {
-    private readonly GoCardlessService _goCardlessService;
     private readonly BankoDbContext _dbContext;
+    private readonly GoCardlessService _goCardlessService;
+    private readonly TransactionsRepository _repository;
 
     public TransactionsController(GoCardlessService goCardlessService, BankoDbContext dbContext)
     {
         _goCardlessService = goCardlessService;
         _dbContext = dbContext;
+        _repository = new TransactionsRepository();
     }
 
     [HttpGet("{accountId}")]
     public async Task<IActionResult> FetchAndStoreTransactions(string accountId)
     {
-        // Fetch transactions from GoCardless
+        // TODO(): Handle the exceptions
         var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
         
-        // Store in database
-        _dbContext.Transactions.Add(transactions);
-
-
+        if (transactions == null) return NotFound();
+        _repository.StoreTransactions(_dbContext, transactions);
+        
         await _dbContext.SaveChangesAsync();
         return Ok("Transactions stored successfully.");
     }
