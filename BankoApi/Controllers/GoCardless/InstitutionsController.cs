@@ -8,8 +8,8 @@ namespace BankoApi.Controllers.GoCardless;
 [Route("[controller]")]
 public class InstitutionsController : ControllerBase
 {
-    private readonly GoCardlessService _goCardlessService;
     private readonly BankoDbContext _dbContext;
+    private readonly GoCardlessService _goCardlessService;
 
     public InstitutionsController(GoCardlessService goCardlessService, BankoDbContext dbContext)
     {
@@ -21,13 +21,9 @@ public class InstitutionsController : ControllerBase
     public async Task<IActionResult> FetchInstitutionsAsync()
     {
         var institutions = await _goCardlessService.GetInstitutions();
-        foreach (var institution in institutions)
-        {
-            _dbContext.Institutions.Add(institution);    
-        }
-        
+        foreach (var institution in institutions) _dbContext.Institutions.Add(institution);
+
         await _dbContext.SaveChangesAsync();
         return Ok(institutions);
     }
 }
-

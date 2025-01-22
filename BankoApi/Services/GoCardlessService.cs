@@ -1,18 +1,19 @@
 using System.Net.Http.Headers;
 using BankoApi.Data.Dao;
-using Microsoft.AspNetCore.Http.HttpResults;
+using BankoApi.Services.Model;
 
 namespace BankoApi.Services;
 
 public class GoCardlessService
 {
-    private HttpClient _httpClient;
-    private GoCardlessTokenService _tokenService;
+    private readonly HttpClient _httpClient;
+    private readonly GoCardlessTokenService _tokenService;
     private ILogger<GoCardlessService> _logger;
-    
-    public GoCardlessService(HttpClient httpClient, GoCardlessTokenService tokenService, ILogger<GoCardlessService> logger)
+
+    public GoCardlessService(HttpClient httpClient, GoCardlessTokenService tokenService,
+        ILogger<GoCardlessService> logger)
     {
-        _httpClient = httpClient; 
+        _httpClient = httpClient;
         _tokenService = tokenService;
         _logger = logger;
     }
@@ -37,7 +38,7 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync($"institutions/?country=it");
+        var response = await _httpClient.GetAsync("institutions/?country=it");
         response.EnsureSuccessStatusCode();
         return response.Content.ReadFromJsonAsync<List<Institutions>>().Result ?? new List<Institutions>();
     }

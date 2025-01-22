@@ -11,7 +11,8 @@ public class GoCardlessTokenService
     private string _accessToken;
     private DateTime _tokenExpiry;
 
-    public GoCardlessTokenService(HttpClient httpClient, IConfiguration configuration, ILogger<GoCardlessTokenService> logger)
+    public GoCardlessTokenService(HttpClient httpClient, IConfiguration configuration,
+        ILogger<GoCardlessTokenService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
@@ -37,25 +38,21 @@ public class GoCardlessTokenService
         var secretKey = Environment.GetEnvironmentVariable("GOCARDLESS_KEY") ?? "";
 
         if (string.IsNullOrEmpty(secretId) || string.IsNullOrEmpty(secretKey))
-        {
             throw new InvalidOperationException("GoCardless credentials are not configured.");
-        }
 
         var response = await _httpClient.PostAsJsonAsync(
-            requestUri: "token/new/", 
-            value: new
-        {
-            secret_id = secretId,
-            secret_key = secretKey
-        });
+            "token/new/",
+            new
+            {
+                secret_id = secretId,
+                secret_key = secretKey
+            });
 
-           response.EnsureSuccessStatusCode();
+        response.EnsureSuccessStatusCode();
 
         var tokenResponse = await response.Content.ReadFromJsonAsync<GoCardlessTokenResponse>();
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.Access))
-        {
             throw new InvalidOperationException("Failed to retrieve GoCardless token.");
-        }
 
         _accessToken = tokenResponse.Access;
         _tokenExpiry = DateTime.UtcNow.AddSeconds(tokenResponse.Expires);
