@@ -75,11 +75,11 @@ public static class TransactionsExtensions
             new TransactionDao
             {
                 Id = bookedTransaction.TransactionId,
-                BookingDate = bookedTransaction.BookingDate,
-                ValueDate = bookedTransaction.ValueDate,
+                BookingDate = DateTime.Parse(bookedTransaction.BookingDate),
+                ValueDate = DateTime.Parse(bookedTransaction.ValueDate),
                 Amount = bookedTransaction.TransactionAmount.Amount,
                 Currency = bookedTransaction.TransactionAmount.Currency,
-                DebtorAccount = bookedTransaction.DebtorAccount?.GetDebtorAccountId(ctx),
+                DebtorAccount = bookedTransaction.DebtorAccount.GetDebtorAccountId(ctx),
                 RemittanceInformationUnstructured = bookedTransaction.RemittanceInformationUnstructured,
                 RemittanceInformationUnstructuredArray = bookedTransaction.RemittanceInformationUnstructuredArray,
                 BankTransactionCode = bookedTransaction.BankTransactionCode,
@@ -99,13 +99,12 @@ public static class TransactionsExtensions
     public static List<PendingDao> ToPendingDao(this List<Pending> pendings)
     {
         if (!pendings.Any())
-            // Handle the case where no booked transactions exist
             return new List<PendingDao>();
 
         return pendings.ConvertAll(pendingTransaction =>
             new PendingDao
             {
-                BookingDate = pendingTransaction.BookingDate,
+                BookingDate = DateTime.Parse(pendingTransaction.BookingDate),
                 Amount = pendingTransaction.TransactionAmount.Amount,
                 Currency = pendingTransaction.TransactionAmount.Currency,
                 RemittanceInformationUnstructured = pendingTransaction.RemittanceInformationUnstructured,
@@ -114,13 +113,19 @@ public static class TransactionsExtensions
         );
     }
 
-    private static Guid GetDebtorAccountId(this DebtorAccount debtorAccount, BankoDbContext ctx)
+    private static DebtorAccountDao? GetDebtorAccountId(this DebtorAccount debtorAccount, BankoDbContext ctx)
     {
-        IQueryable<DebtorAccountDao> account = ctx.DebtorAccounts.Where(it => it.Iban == debtorAccount.Iban);
-        if (account.Any()) return account.First().Id;
-        var newAccount = new DebtorAccountDao { Bban = debtorAccount.Bban, Iban = debtorAccount.Iban };
+        var existingAccount = ctx.DebtorAccounts.FirstOrDefault(it => it.Iban == debtorAccount.Iban);
+        if (existingAccount != null) return existingAccount;
+
+        var newAccount = new DebtorAccountDao
+        {
+            Bban = debtorAccount.Bban,
+            Iban = debtorAccount.Iban
+        };
+
         ctx.DebtorAccounts.Add(newAccount);
         ctx.SaveChanges();
-        return newAccount.Id;
+        return newAccount;
     }
 }

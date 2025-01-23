@@ -31,4 +31,20 @@ public class BankoDbContext : DbContext
             optionsBuilder.UseSqlServer(connectionString);
         }
     }
+    
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Transaction>()
+            .HasOne(t => t.DebtorAccount) // Explicitly set the relationship
+            .WithMany() // Assuming a one-to-many relationship
+            .HasForeignKey("DebtorAccountId") // Define the FK explicitly
+            .OnDelete(DeleteBehavior.Restrict); // Avoid cascading deletes
+
+        modelBuilder.Entity<DebtorAccount>()
+            .HasIndex(da => da.Iban) // Add a unique constraint for IBAN
+            .IsUnique(); // Ensure uniqueness in the database
+    }
+
 }
