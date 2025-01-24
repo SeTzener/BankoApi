@@ -1,4 +1,4 @@
-name: Build and Deploy API to DEV
+name: Build and Deploy API to PROD
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
 
       # Step 4: Build Docker Image
       - name: Build Docker Image
-        run: docker build --build-arg ENV_FILE=.env --build-arg CONFIGURATION=Debug -t setzener/banko-api-dev:debug .
+        run: docker build --build-arg ENV_FILE=.env --build-arg CONFIGURATION=Debug -t setzener/banko-api:release .
 
 
       # Step 5: Login to Docker Hub
@@ -44,7 +44,7 @@ jobs:
 
       # Step 6: Push Docker Image
       - name: Push Docker Image
-        run: docker push banko-api-dev:${{ github.sha }}
+        run: docker push banko-api:${{ github.sha }}
 
       # Step 7: Deploy to Server
       - name: Deploy to Server
@@ -54,7 +54,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            docker pull banko-api-dev:${{ github.sha }}
+            docker pull banko-api:${{ github.sha }}
             docker stop banko-api-container || true
             docker rm banko-api-container || true
-            docker run -d -p 5001:80 --name banko-api-container banko-api-dev:${{ github.sha }}
+            docker run -d -p 5002:80 --name banko-api-container banko-api:${{ github.sha }}
