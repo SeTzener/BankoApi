@@ -8,7 +8,9 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    
+    if: github.event_name != 'pull_request'
+    
     steps:
       # Step 1: Checkout the repository
       - name: Checkout Code
