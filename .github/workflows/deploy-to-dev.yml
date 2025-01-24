@@ -3,7 +3,7 @@ name: Build and Deploy API to DEV
 on:
   push:
     branches:
-      - main
+      - new-fix
 
 jobs:
   build-and-deploy:
@@ -29,10 +29,15 @@ jobs:
           echo "GOCARDLESS_ID=${{ secrets.GOCARDLESS_ID }}" >> .env
           echo "GOCARDLESS_KEY=${{ secrets.GOCARDLESS_KEY }}" >> .env
           echo "GOCARDLESS_ACCOUNT_ID=${{ secrets.GOCARDLESS_ACCOUNT_ID }}" >> .env
-
+      # DEbug
+      - name: Debug Checkout
+        run: pwd
+      - name: Debug Checkout
+        run: ls -l
+        
       # Step 4: Build Docker Image
       - name: Build Docker Image
-        run: docker build --build-arg ENV_FILE=.env --build-arg CONFIGURATION=Debug -t setzener/banko-api-dev:debug .
+        run: docker build --build-arg ENV_FILE=.env --build-arg CONFIGURATION=Debug -t banko-api-dev:debug /home/gaetanovf/
 
 
       # Step 5: Login to Docker Hub
@@ -58,4 +63,4 @@ jobs:
             docker pull banko-api-dev:${{ github.sha }}
             docker stop banko-api-container || true
             docker rm banko-api-container || true
-            docker run -d -p 5001:80 --name banko-api-container banko-api-dev:${{ github.sha }}
+            docker run -d -p 5001:80 --name banko-api-dev banko-api-dev:debug${{ github.sha }}
