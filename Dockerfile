@@ -1,19 +1,19 @@
 # Base image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
 
 # Build App 1
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-banko-api-dev
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-banko-api-dev
 WORKDIR /src
-COPY banko-api-dev/ ./
+COPY BankoApi/ ./bankp-api-dev
 RUN dotnet restore
-RUN dotnet build -c Release -o /app/banko-api-dev-build
-RUN dotnet publish -c Release -o /app/banko-api-dev-publish
+RUN dotnet build -c Debug -o /app/banko-api-dev-build
+RUN dotnet publish -c Debug -o /app/banko-api-dev-publish
 
 # Build App 2
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-banko-api
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-banko-api
 WORKDIR /src
-COPY banko-api/ ./
+COPY BankoApi/ ./
 RUN dotnet restore
 RUN dotnet build -c Release -o /app/banko-api-build
 RUN dotnet publish -c Release -o /app/banko-api-publish
