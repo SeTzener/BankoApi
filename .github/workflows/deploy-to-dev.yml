@@ -9,7 +9,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-
     steps:
       # Step 1: Checkout the repository
       - name: Checkout Code
