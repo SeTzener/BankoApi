@@ -1,31 +1,35 @@
-# Base image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-WORKDIR /app
+# Start from the .NET SDK image
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 
-# Build App 1
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-banko-api-dev
+# Set working directory
 WORKDIR /src
-COPY BankoApi/ ./bankp-api-dev
+
+# Copy the project files
+COPY BankoApi/ ./BankoApi
+
+RUN ls -R /src
+
+# Move to the correct directory containing the .csproj file
+WORKDIR /src/BankoApi
+
+RUN ls -R /src
+
+# Restore dependencies
 RUN dotnet restore
+
+# Build the project
 RUN dotnet build -c Debug -o /app/banko-api-dev-build
+
+# Publish the project
 RUN dotnet publish -c Debug -o /app/banko-api-dev-publish
 
-# Build App 2
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-banko-api
-WORKDIR /src
-COPY BankoApi/ ./
-RUN dotnet restore
-RUN dotnet build -c Release -o /app/banko-api-build
-RUN dotnet publish -c Release -o /app/banko-api-publish
-
-# Final image for App 1
-FROM base AS final-banko-api-dev
+# Final stage
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final-banko-api-dev
 WORKDIR /app
-COPY --from=build-banko-api-dev /app/banko-api-dev-publish .
-ENTRYPOINT ["dotnet", "banko-api-dev.dll"]
+COPY --from=build /app/banko-api-dev-publish .
 
-# Final image for App 2
-FROM base AS final-banko-api
-WORKDIR /app
-COPY --from=build-banko-api /app/banko-api-publish .
-ENTRYPOINT ["dotnet", "banko-api.dll"]
+# Expose the necessary port (change as needed)
+EXPOSE 5119
+
+# Define the entry point for the application
+ENTRYPOINT ["dotnet", "BankoApi.dll"]
