@@ -79,7 +79,9 @@ public static class TransactionsExtensions
                 ValueDate = DateTime.Parse(bookedTransaction.ValueDate),
                 Amount = bookedTransaction.TransactionAmount.Amount,
                 Currency = bookedTransaction.TransactionAmount.Currency,
-                DebtorAccount = bookedTransaction.DebtorAccount.GetDebtorAccountId(ctx),
+                DebtorAccount = bookedTransaction.DebtorAccount != null
+                    ? GetDebtorAccountId(bookedTransaction.DebtorAccount, ctx)
+                    : null,
                 RemittanceInformationUnstructured = bookedTransaction.RemittanceInformationUnstructured,
                 RemittanceInformationUnstructuredArray = bookedTransaction.RemittanceInformationUnstructuredArray,
                 BankTransactionCode = bookedTransaction.BankTransactionCode,

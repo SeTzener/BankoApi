@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DotNetEnv;
 
 namespace BankoApi.Services;
@@ -50,7 +51,10 @@ public class GoCardlessTokenService
 
         response.EnsureSuccessStatusCode();
 
-        var tokenResponse = await response.Content.ReadFromJsonAsync<GoCardlessTokenResponse>();
+        var tokenResponse = await response.Content.ReadFromJsonAsync<GoCardlessTokenResponse>(options: new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.Access))
             throw new InvalidOperationException("Failed to retrieve GoCardless token.");
 
