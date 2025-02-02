@@ -18,15 +18,15 @@ RUN ls -R /src
 RUN dotnet restore
 
 # Build the project
-RUN dotnet build -c Debug -o /app/banko-api-dev-build
+RUN dotnet build -c Release -o /app/banko-api-build
 
 # Publish the project
-RUN dotnet publish -c Debug -o /app/banko-api-dev-publish
+RUN dotnet publish -c Release -o /app/banko-api-publish
 
 # Final stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final-banko-api-dev
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final-banko-api
 WORKDIR /app
-COPY --from=build /app/banko-api-dev-publish .
+COPY --from=build /app/banko-api-publish .
 
 # Expose the necessary port (change as needed)
 EXPOSE 5119

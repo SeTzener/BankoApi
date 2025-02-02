@@ -32,13 +32,13 @@ jobs:
       - name: Verify .env File
         run: cat .env
 
-      # Publish .NET Application (Debug)
-      - name: Publish .NET Application (Debug)
-        run: dotnet publish BankoApi/BankoApi.csproj -c Debug -o publish
+      # Publish .NET Application (Release)
+      - name: Publish .NET Application (Release)
+        run: dotnet publish BankoApi/BankoApi.csproj -c Release -o publish
 
       # Build Docker Image
       - name: Build Docker Image
-        run: docker build --build-arg CONFIGURATION=Debug -t ${{ secrets.DOCKER_USERNAME }}/banko-api-dev:${{ github.sha }} .
+        run: docker build --build-arg CONFIGURATION=Release -t ${{ secrets.DOCKER_USERNAME }}/banko-api:${{ github.sha }} .
 
       # Login to Docker Hub
       - name: Login to Docker Hub
@@ -49,7 +49,7 @@ jobs:
 
       # Push Docker Image
       - name: Push Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/banko-api-dev:${{ github.sha }}
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/banko-api:${{ github.sha }}
 
       # Deploy to Server
       - name: Deploy to Server
@@ -68,12 +68,12 @@ jobs:
             echo "GOCARDLESS_ACCOUNT_ID=${{ secrets.GOCARDLESS_ACCOUNT_ID }}" >> /home/${{ secrets.SERVER_USER }}/.env
 
             # Pull the latest Docker image
-            docker pull ${{ secrets.DOCKER_USERNAME }}/banko-api-dev:${{ github.sha }}
+            docker pull ${{ secrets.DOCKER_USERNAME }}/banko-api:${{ github.sha }}
 
             # Stop and remove the existing container (if any)
-            docker stop banko-api-dev || true
-            docker rm banko-api-dev || true
+            docker stop banko-api || true
+            docker rm banko-api || true
 
             # Run the container with the .env file
-            docker run -d -p 5119:8080 --env-file /home/${{ secrets.SERVER_USER }}/.env --name banko-api-dev \
-              ${{ secrets.DOCKER_USERNAME }}/banko-api-dev:${{ github.sha }}
+            docker run -d -p 5119:8080 --env-file /home/${{ secrets.SERVER_USER }}/.env --name banko-api \
+              ${{ secrets.DOCKER_USERNAME }}/banko-api:${{ github.sha }}
