@@ -35,6 +35,10 @@ public class TransactionsRepository
         };
         foreach (var newTransaction in transactions.BankTransactions.Booked)
         {
+            var prova = storedTransactions.Select(it => it).FirstOrDefault(it => it == newTransaction.TransactionId);
+            Console.WriteLine($"Stored ID: {prova}");
+            Console.WriteLine($"New    ID: {newTransaction.TransactionId}");
+            Console.WriteLine("");
             if (!storedTransactions.Contains(newTransaction.TransactionId))
             {
                 transactionsToStore.BankTransactions.Booked.Add(newTransaction);
