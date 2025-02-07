@@ -9,7 +9,7 @@ namespace BankoApi.Services;
 
 public class ScheduledTaskService : BackgroundService
 {
-    private readonly TimeSpan _executionTime = new(22, 48, 00);
+    private readonly TimeSpan _executionTime = new(08, 00, 00);
     private readonly IServiceScopeFactory _scopeFactory;
 
     public ScheduledTaskService(IServiceScopeFactory scopeFactory)
