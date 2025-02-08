@@ -52,9 +52,10 @@ public class TransactionsController : ControllerBase
         var query = _dbContext.Transactions.Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate);
 
         var totalCount = query.Count();
-
+        
         var transactions = await _dbContext.Transactions
             .Include(t => t.DebtorAccount)
+            .Include(t => t.ExpenseTag)
             .Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate)
             .OrderByDescending(t => t.BookingDate)
             .Skip(skip)
