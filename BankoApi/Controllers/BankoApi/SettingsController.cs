@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices.JavaScript;
+using BankoApi.Controllers.BankoApi.Responses;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +17,12 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("expense-tags")]
-    public async Task<List<ExpenseTag>> GetAllTagsAsync()
+    public async Task<IActionResult> GetAllTagsAsync()
     {
-        return _dbContext.ExpenseTags.ToList();
+        return Ok(new GetExpenseTagsResponse
+        {
+            ExpenseTags = _dbContext.ExpenseTags.ToList()
+        });
     }
 
     [HttpPost("expense-tag")]
@@ -27,7 +30,7 @@ public class SettingsController : ControllerBase
     {
         _dbContext.ExpenseTags.Add(expenseTag);
         await _dbContext.SaveChangesAsync();
-        return Ok(expenseTag);
+        return Ok(new UpsertExpenseTagResponse{ExpenseTag = expenseTag});
     }
 
     [HttpPut("expense-tag/{expenseTagId}")]
@@ -42,7 +45,7 @@ public class SettingsController : ControllerBase
         _dbContext.ExpenseTags.Update(tag);
         await _dbContext.SaveChangesAsync();
         
-        return Ok(tag);
+        return Ok(new UpsertExpenseTagResponse{ExpenseTag = expenseTag});
     }
 
     [HttpDelete("expense-tag/{expenseTagId}")]
