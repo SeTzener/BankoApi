@@ -42,6 +42,7 @@ builder.Services.AddHttpClient<GoCardlessService>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Banko/1.0");
 });
 
+// TODO(): Remove this
 builder.Services.AddScoped<InstitutionsController>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
