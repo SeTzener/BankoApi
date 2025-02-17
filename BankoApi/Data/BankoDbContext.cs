@@ -14,7 +14,7 @@ public class BankoDbContext : DbContext
     public DbSet<Balance> Balances { get; set; }
     public DbSet<Requisition> Requisitions { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
-    public DbSet<ExpenseTag> ExpenseTags { get; set; }
+    public DbSet<ExpenseTag> ExpenseTag { get; set; }
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
     public DbSet<Pending> Pendings { get; set; }
 
@@ -44,6 +44,12 @@ public class BankoDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict); // Avoid cascading deletes
         
         modelBuilder.Entity<Transaction>()
+            .HasOne(t => t.CreditorAccount) // Explicitly set the relationship
+            .WithMany() // Assuming a one-to-many relationship
+            .HasForeignKey("CreditorAccountId") // Define the FK explicitly
+            .OnDelete(DeleteBehavior.Restrict); // Avoid cascading deletes
+
+        modelBuilder.Entity<Transaction>()
             .HasOne(t => t.ExpenseTag) // Explicitly set the relationship
             .WithMany()
             .HasForeignKey("ExpenseTagId") // Define the FK explicitly
@@ -51,7 +57,7 @@ public class BankoDbContext : DbContext
 
         modelBuilder.Entity<ExpenseTag>()
             .HasKey(et => et.Id);
-        
+    
         modelBuilder.Entity<ExpenseTag>()
             .HasIndex(et => et.Id)
             .IsUnique();
@@ -59,6 +65,8 @@ public class BankoDbContext : DbContext
         modelBuilder.Entity<DebtorAccount>()
             .HasIndex(da => da.Iban) // Add a unique constraint for IBAN
             .IsUnique(); // Ensure uniqueness in the database
-    }
 
+        modelBuilder.Entity<CreditorAccount>()
+            .HasIndex(da => da.Iban); // Add a unique constraint for IBAN
+    }
 }
