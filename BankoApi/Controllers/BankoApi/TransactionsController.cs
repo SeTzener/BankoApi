@@ -1,5 +1,6 @@
 using BankoApi.Controllers.BankoApi.Requests;
 using BankoApi.Data;
+using BankoApi.Data.Dao;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -76,10 +77,18 @@ public class TransactionsController : ControllerBase
     {
         var transaction = _dbContext.Transactions.Find(request.TransactionId);
         if (transaction == null) return NotFound();
-        
-        var expenseTag = _dbContext.ExpenseTag.Find(request.ExpenseTagId);
-        
-        transaction.ExpenseTag = expenseTag;
+
+        if (request.ExpenseTagId != null)
+        {
+            var expenseTag = _dbContext.ExpenseTag.Find(request.ExpenseTagId);
+            transaction.ExpenseTag = expenseTag;
+            transaction.ExpenseTagId = expenseTag?.Id;
+        }
+        else
+        {
+            transaction.ExpenseTag = null;
+            transaction.ExpenseTagId = null;
+        }
         _dbContext.Entry(transaction).State = EntityState.Modified;
         await _dbContext.SaveChangesAsync();
         

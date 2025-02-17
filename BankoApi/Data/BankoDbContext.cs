@@ -9,7 +9,6 @@ public class BankoDbContext : DbContext
     public BankoDbContext(DbContextOptions<BankoDbContext> options) : base(options)
     {
     }
-
     public DbSet<Institutions> Institutions { get; set; }
     public DbSet<Balance> Balances { get; set; }
     public DbSet<Requisition> Requisitions { get; set; }
@@ -36,7 +35,7 @@ public class BankoDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        
         modelBuilder.Entity<Transaction>()
             .HasOne(t => t.DebtorAccount) // Explicitly set the relationship
             .WithMany() // Assuming a one-to-many relationship
@@ -52,8 +51,9 @@ public class BankoDbContext : DbContext
         modelBuilder.Entity<Transaction>()
             .HasOne(t => t.ExpenseTag) // Explicitly set the relationship
             .WithMany()
-            .HasForeignKey("ExpenseTagId") // Define the FK explicitly
-            .OnDelete(DeleteBehavior.Restrict); // Avoid cascading deletes
+            .HasForeignKey(t => t.ExpenseTagId) // Define the FK explicitly
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull); // Avoid cascading deletes
 
         modelBuilder.Entity<ExpenseTag>()
             .HasKey(et => et.Id);
