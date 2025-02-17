@@ -21,14 +21,14 @@ public class SettingsController : ControllerBase
     {
         return Ok(new GetExpenseTagsResponse
         {
-            ExpenseTags = _dbContext.ExpenseTags.ToList()
+            ExpenseTags = _dbContext.ExpenseTag.ToList()
         });
     }
 
     [HttpPost("expense-tag")]
     public async Task<IActionResult> AddExpenseTagAsync([FromBody] ExpenseTag expenseTag)
     {
-        _dbContext.ExpenseTags.Add(expenseTag);
+        _dbContext.ExpenseTag.Add(expenseTag);
         await _dbContext.SaveChangesAsync();
         return Ok(new UpsertExpenseTagResponse{ExpenseTag = expenseTag});
     }
@@ -36,13 +36,13 @@ public class SettingsController : ControllerBase
     [HttpPut("expense-tag/{expenseTagId}")]
     public async Task<IActionResult> UpdateExpenseTagAsync(String expenseTagId, [FromBody] ExpenseTag expenseTag)
     {
-        var tag = _dbContext.ExpenseTags.Find(expenseTagId);
+        var tag = _dbContext.ExpenseTag.Find(expenseTagId);
         if (tag == null) return NotFound();
         
         tag.Name = expenseTag.Name;
         tag.Color = expenseTag.Color;
         tag.Aka = expenseTag.Aka;
-        _dbContext.ExpenseTags.Update(tag);
+        _dbContext.ExpenseTag.Update(tag);
         await _dbContext.SaveChangesAsync();
         
         return Ok(new UpsertExpenseTagResponse{ExpenseTag = expenseTag});
@@ -51,9 +51,9 @@ public class SettingsController : ControllerBase
     [HttpDelete("expense-tag/{expenseTagId}")]
     public async Task<IActionResult> DeleteExpenseTagAsync(String expenseTagId)
     {
-        var tag = _dbContext.ExpenseTags.Find(expenseTagId);
+        var tag = _dbContext.ExpenseTag.Find(expenseTagId);
         if (tag == null) return NotFound();
-        _dbContext.ExpenseTags.Remove(tag);
+        _dbContext.ExpenseTag.Remove(tag);
         await _dbContext.SaveChangesAsync();
         
         return Ok("Tag deleted");

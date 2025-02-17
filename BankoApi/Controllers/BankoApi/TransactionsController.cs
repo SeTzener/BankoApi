@@ -37,6 +37,7 @@ public class TransactionsController : ControllerBase
         
         var transactions = await _dbContext.Transactions
             .Include(t => t.DebtorAccount)
+            .Include(t => t.CreditorAccount)
             .Include(t => t.ExpenseTag)
             .Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate)
             .OrderByDescending(t => t.BookingDate)
@@ -76,7 +77,7 @@ public class TransactionsController : ControllerBase
         var transaction = _dbContext.Transactions.Find(request.TransactionId);
         if (transaction == null) return NotFound();
         
-        var expenseTag = _dbContext.ExpenseTags.Find(request.ExpenseTagId);
+        var expenseTag = _dbContext.ExpenseTag.Find(request.ExpenseTagId);
         
         transaction.ExpenseTag = expenseTag;
         _dbContext.Entry(transaction).State = EntityState.Modified;
