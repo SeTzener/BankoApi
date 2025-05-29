@@ -41,6 +41,7 @@ public class SettingsController : ControllerBase
         
         tag.Name = expenseTag.Name;
         tag.Color = expenseTag.Color;
+        tag.isEarning = expenseTag.isEarning;
         tag.Aka = expenseTag.Aka;
         _dbContext.ExpenseTag.Update(tag);
         await _dbContext.SaveChangesAsync();
