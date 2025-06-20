@@ -25,10 +25,10 @@ public class TransactionsController : ControllerBase
     {
         // TODO(): Handle the exceptions
         var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
-        
+
         if (transactions == null) return NotFound();
         _repository.StoreTransactions(_dbContext, transactions);
-        
+
         await _dbContext.SaveChangesAsync();
         return Ok("Transactions stored successfully.");
     }

@@ -9,8 +9,10 @@ public class Transaction
     public required DateTime ValueDate { get; set; }
     public required string Amount { get; set; }
     public required string Currency { get; set; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DebtorAccount? DebtorAccount { get; set; }
+
     public required string RemittanceInformationUnstructured { get; set; }
     public required List<string> RemittanceInformationUnstructuredArray { get; set; }
     public required string BankTransactionCode { get; set; }

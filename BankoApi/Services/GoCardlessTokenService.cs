@@ -5,8 +5,8 @@ namespace BankoApi.Services;
 
 public class GoCardlessTokenService
 {
-    private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly HttpClient _httpClient;
     private readonly ILogger<GoCardlessTokenService> _logger;
 
     private string _accessToken;
@@ -51,7 +51,7 @@ public class GoCardlessTokenService
 
         response.EnsureSuccessStatusCode();
 
-        var tokenResponse = await response.Content.ReadFromJsonAsync<GoCardlessTokenResponse>(options: new JsonSerializerOptions
+        var tokenResponse = await response.Content.ReadFromJsonAsync<GoCardlessTokenResponse>(new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
