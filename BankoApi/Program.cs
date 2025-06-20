@@ -17,19 +17,19 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {
     Env.Load();
-    String db = Utils.SelectDatabase(builder);
-    String baseUrl = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_IP") 
-                     ?? throw new Exception("GoogleCloud BaseUrl is missing");
-    String dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
-    String dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
-    String connectionString =
+    var db = Utils.SelectDatabase(builder);
+    var baseUrl = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_IP")
+                  ?? throw new Exception("GoogleCloud BaseUrl is missing");
+    var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
+    var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
+    var connectionString =
         $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
     options.UseSqlServer(connectionString);
 });
 
-String baseUrl = builder.Configuration["GoCardlessAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
-String version = builder.Configuration["GoCardlessAPI:version"] ?? throw new Exception("GoCadless API version is missing");
-    
+var baseUrl = builder.Configuration["GoCardlessAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
+var version = builder.Configuration["GoCardlessAPI:version"] ?? throw new Exception("GoCadless API version is missing");
+
 builder.Services.AddHttpClient<GoCardlessTokenService>(client =>
 {
     client.BaseAddress = new Uri(new Uri(baseUrl), version);

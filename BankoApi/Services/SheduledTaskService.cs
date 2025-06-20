@@ -1,8 +1,5 @@
-using System.Text.Json;
-using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
 using BankoApi.Repository;
-using BankoApi.Services.Model;
 using DotNetEnv;
 
 namespace BankoApi.Services;
@@ -50,7 +47,7 @@ public class ScheduledTaskService : BackgroundService
         Console.WriteLine(DateTime.UtcNow);
         var accountId = Environment.GetEnvironmentVariable("GOCARDLESS_ACCOUNT_ID") ??
                         throw new Exception("Environment variable GOCARDLESS_ACCOUNT_ID not set");
-        
+
         using var scope = _scopeFactory.CreateScope();
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();

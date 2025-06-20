@@ -1,6 +1,5 @@
 using BankoApi.Controllers.BankoApi.Requests;
 using BankoApi.Data;
-using BankoApi.Data.Dao;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +16,7 @@ public class TransactionsController : ControllerBase
     {
         _dbContext = dbContext;
     }
-    
+
     [HttpGet]
     public async Task<IActionResult> GetTransactions(
         int pageNumber = 1,
@@ -35,7 +34,7 @@ public class TransactionsController : ControllerBase
         var query = _dbContext.Transactions.Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate);
 
         var totalCount = query.Count();
-        
+
         var transactions = await _dbContext.Transactions
             .Include(t => t.DebtorAccount)
             .Include(t => t.CreditorAccount)
@@ -46,7 +45,7 @@ public class TransactionsController : ControllerBase
             .Take(pageSize)
             .ToListAsync();
 
-        return Ok(new PaginatedTransactionResponse()
+        return Ok(new PaginatedTransactionResponse
         {
             Transactions = transactions,
             TotalCount = totalCount,
@@ -58,17 +57,12 @@ public class TransactionsController : ControllerBase
     private void ValidateTransaction(int pageNumber, int pageSize, DateTime? fromDate, DateTime? toDate)
     {
         if (pageNumber < 1 || pageSize < 1)
-        {
             throw new ArgumentException("Page number and page size must be greater than zero.");
-        }
 
         if (fromDate != null)
         {
             toDate ??= DateTime.UtcNow;
-            if (fromDate > toDate)
-            {
-                throw new ArgumentException("The fromDate cannot be greater than toDate.");
-            }
+            if (fromDate > toDate) throw new ArgumentException("The fromDate cannot be greater than toDate.");
         }
     }
 
@@ -89,9 +83,10 @@ public class TransactionsController : ControllerBase
             transaction.ExpenseTag = null;
             transaction.ExpenseTagId = null;
         }
+
         _dbContext.Entry(transaction).State = EntityState.Modified;
         await _dbContext.SaveChangesAsync();
-        
+
         return Ok("Transaction updated");
     }
 }
