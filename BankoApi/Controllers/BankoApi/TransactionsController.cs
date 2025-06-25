@@ -44,7 +44,7 @@ public class TransactionsController : ControllerBase
             .Select(t => t.Id)
             .ToListAsync();
 
-// Then load full entities with relationships
+        // Then load full entities with relationships
         var transactions = await _dbContext.Transactions
             .Where(t => transactionIds.Contains(t.Id))
             .Include(t => t.DebtorAccount)
