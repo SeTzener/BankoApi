@@ -35,14 +35,22 @@ public class TransactionsController : ControllerBase
 
         var totalCount = query.Count();
 
-        var transactions = await _dbContext.Transactions
-            .Include(t => t.DebtorAccount)
-            .Include(t => t.CreditorAccount)
-            .Include(t => t.ExpenseTag)
+        // First get just the IDs with pagination
+        var transactionIds = await _dbContext.Transactions
             .Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate)
             .OrderByDescending(t => t.BookingDate)
             .Skip(skip)
             .Take(pageSize)
+            .Select(t => t.Id)
+            .ToListAsync();
+
+// Then load full entities with relationships
+        var transactions = await _dbContext.Transactions
+            .Where(t => transactionIds.Contains(t.Id))
+            .Include(t => t.DebtorAccount)
+            .Include(t => t.CreditorAccount)
+            .Include(t => t.ExpenseTag)
+            .OrderByDescending(t => t.BookingDate)
             .ToListAsync();
 
         return Ok(new PaginatedTransactionResponse
