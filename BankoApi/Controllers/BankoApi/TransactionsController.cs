@@ -97,4 +97,15 @@ public class TransactionsController : ControllerBase
 
         return Ok("Transaction updated");
     }
+
+    [HttpPut("{transactionId}/note")]
+    public async Task<IActionResult> UpdateNote([FromRoute] string transactionId, [FromBody] UpdateNoteRequest request)
+    {
+        var transaction = _dbContext.Transactions.Find(transactionId);
+        if (transaction == null) return NotFound();
+        transaction.Note = request.Note;
+        _dbContext.Entry(transaction).State = EntityState.Modified;
+        await _dbContext.SaveChangesAsync();
+        return Ok("Transaction updated");
+    }
 }

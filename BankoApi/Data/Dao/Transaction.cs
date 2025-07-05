@@ -21,7 +21,8 @@ public class Transaction
     public CreditorAccount? CreditorAccount { get; set; }
     public string? DebtorName { get; set; }
     public List<string>? RemittanceInformationStructuredArray { get; set; }
-    public string? ExpenseTagId { get; set; }
+    public string ExpenseTagId { get; set; }
+    public string? Note { get; set; }
     public ExpenseTag? ExpenseTag { get; set; }
 }
 
