@@ -16,6 +16,7 @@ public class BankoDbContext : DbContext
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<ExpenseTag> ExpenseTag { get; set; }
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
+    public DbSet<Account> Accounts { get; set; }
     public DbSet<Pending> Pendings { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
