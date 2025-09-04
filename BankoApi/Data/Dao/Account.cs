@@ -13,9 +13,8 @@ namespace BankoApi.Data.Dao
         [StringLength(255)]
         public string Email { get; set; } = string.Empty;
 
-        [Required]
         [StringLength(255)]
-        public string PasswordHash { get; set; } = string.Empty;
+        public string? PasswordHash { get; set; } = string.Empty;
 
         [StringLength(255)]
         public string? FullName { get; set; }

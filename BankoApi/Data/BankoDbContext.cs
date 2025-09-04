@@ -10,13 +10,13 @@ public class BankoDbContext : DbContext
     {
     }
 
+    public DbSet<Account> Accounts { get; set; }
     public DbSet<Institutions> Institutions { get; set; }
     public DbSet<Balance> Balances { get; set; }
     public DbSet<Requisition> Requisitions { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<ExpenseTag> ExpenseTag { get; set; }
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
-    public DbSet<Account> Accounts { get; set; }
     public DbSet<Pending> Pendings { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -70,5 +70,7 @@ public class BankoDbContext : DbContext
 
         modelBuilder.Entity<CreditorAccount>()
             .HasIndex(da => da.Iban); // Add a unique constraint for IBAN
+        
+        modelBuilder.Entity<Account>().HasIndex(a => a.Email).IsUnique();
     }
 }
