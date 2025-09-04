@@ -1,18 +1,17 @@
-using System.ComponentModel;
-
 namespace BankoApi.Controllers.BankoApi.Responses;
 
 public class AccountResponse
 {
     public Guid AccountId { get; set; }
-    public String AccessToken { get; set; }
-    public String RefreshToken { get; set; }
-    public Int64 ExpiresIn { get; set; }
+    public string AccessToken { get; set; }
+    public string RefreshToken { get; set; }
+    public long ExpiresIn { get; set; }
 }
 
-
-enum AccountErrorMessages
+internal enum AccountErrorMessages
 {
     WrongCredentials,
-    
+    EmailAlreadyExists,
+    SomethingWentWrong,
+    InactiveAccount
 }

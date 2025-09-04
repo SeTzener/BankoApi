@@ -70,7 +70,7 @@ public class BankoDbContext : DbContext
 
         modelBuilder.Entity<CreditorAccount>()
             .HasIndex(da => da.Iban); // Add a unique constraint for IBAN
-        
+
         modelBuilder.Entity<Account>().HasIndex(a => a.Email).IsUnique();
     }
 }

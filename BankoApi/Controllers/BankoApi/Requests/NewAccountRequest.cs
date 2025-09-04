@@ -4,13 +4,12 @@ namespace BankoApi.Controllers.BankoApi.Requests;
 
 public class NewAccountRequest
 {
-    [EmailAddress]
-    public String Email { get; set; }
-    [Required]
-    [MinLength(10)]
-    public String Password { get; set; }
-    public String? FullName { get; set; }
-    public String? Address { get; set; }
-    public String? PhoneNumber { get; set; }
-    public Boolean ConsentGiven { get; set; }
+    [EmailAddress] public string Email { get; set; }
+
+    [Required] [MinLength(10)] public string Password { get; set; }
+
+    public string? FullName { get; set; }
+    public string? Address { get; set; }
+    public string? PhoneNumber { get; set; }
+    public bool ConsentGiven { get; set; }
 }

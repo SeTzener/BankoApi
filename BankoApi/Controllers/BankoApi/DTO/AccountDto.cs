@@ -1,13 +1,11 @@
-using System.Runtime.InteropServices.JavaScript;
-
 namespace BankoApi.Controllers.BankoApi.DTO;
 
 public struct AccountDto
 {
-    public String Email { get; init; }
-    public String Password { get; init; }
-    public String? FullName { get; init; }
-    public String? Address { get; init; }
-    public String? PhoneNumber { get; init; }
-    public Boolean? ConsentGiven { get; init; }
+    public string Email { get; init; }
+    public string Password { get; init; }
+    public string? FullName { get; init; }
+    public string? Address { get; init; }
+    public string? PhoneNumber { get; init; }
+    public bool? ConsentGiven { get; init; }
 }
