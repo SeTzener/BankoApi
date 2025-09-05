@@ -65,7 +65,7 @@ public class Pending
 
 public static class TransactionsExtensions
 {
-    public static List<TransactionDao> ToTransactionDao(this Transactions transactions, BankoDbContext ctx)
+    public static List<TransactionDao> ToTransactionDao(this Transactions transactions, BankoDbContext dbContext, Guid accountId)
     {
         if (transactions.BankTransactions.Booked.Count == 0)
             // Handle the case where no booked transactions exist
@@ -75,12 +75,13 @@ public static class TransactionsExtensions
             new TransactionDao
             {
                 Id = bookedTransaction.TransactionId,
+                AccountId = accountId,
                 BookingDate = DateTime.Parse(bookedTransaction.BookingDate),
                 ValueDate = DateTime.Parse(bookedTransaction.ValueDate),
                 Amount = bookedTransaction.TransactionAmount.Amount,
                 Currency = bookedTransaction.TransactionAmount.Currency,
                 DebtorAccount = bookedTransaction.DebtorAccount != null
-                    ? GetDebtorAccountId(bookedTransaction.DebtorAccount, ctx)
+                    ? GetDebtorAccountId(bookedTransaction.DebtorAccount, dbContext)
                     : null,
                 RemittanceInformationUnstructured = bookedTransaction.RemittanceInformationUnstructured,
                 RemittanceInformationUnstructuredArray = bookedTransaction.RemittanceInformationUnstructuredArray,
