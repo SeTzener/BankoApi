@@ -6,12 +6,13 @@ namespace BankoApi.Repository;
 
 public class TransactionsRepository
 {
-    public void StoreTransactions(BankoDbContext ctx, Transactions transactions)
+    public void StoreTransactions(BankoDbContext ctx, Guid accountId, Transactions transactions)
     {
         UpdatePendingTransactions(ctx, transactions.BankTransactions.Pending);
 
-        var transactionsToStore = DiscardDuplicates(ctx, transactions).ToTransactionDao(ctx)
-            .OrderByDescending(it => it.BookingDate);
+        var transactionsToStore = DiscardDuplicates(dbContext:ctx, transactions: transactions)
+                .ToTransactionDao(dbContext: ctx, accountId: accountId)
+                .OrderByDescending(it => it.BookingDate);
 
         ctx.Transactions.AddRange(transactionsToStore);
     }

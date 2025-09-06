@@ -45,21 +45,25 @@ public class ScheduledTaskService : BackgroundService
         Env.Load();
         // TODO(): Change this to retrieve a list of accountIDs from the database
         Console.WriteLine(DateTime.UtcNow);
-        var accountId = Environment.GetEnvironmentVariable("GOCARDLESS_ACCOUNT_ID") ??
+        var gcAccountId = Environment.GetEnvironmentVariable("GOCARDLESS_ACCOUNT_ID") ??
                         throw new Exception("Environment variable GOCARDLESS_ACCOUNT_ID not set");
 
         using var scope = _scopeFactory.CreateScope();
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
+        List<Guid> accountIds = dbContext.Accounts.Select(a => a.AccountId).ToList();
 
-
-        // Trigger the endpoint
-        var transactions = await goCardlessService.GetTransactionsAsync(accountId);
-        if (transactions != null)
+        foreach (Guid accountId in accountIds)
         {
-            var repository = new TransactionsRepository();
-            repository.StoreTransactions(dbContext, transactions);
-            await dbContext.SaveChangesAsync();
+            // Trigger the endpoint
+            var transactions = await goCardlessService.GetTransactionsAsync(gcAccountId);
+            if (transactions != null)
+            {
+                // Here I should loop through the GoCardless IDs to retrieve all the bank accounts transactions
+                var repository = new TransactionsRepository();
+                repository.StoreTransactions(ctx:dbContext, accountId: accountId, transactions: transactions);
+                await dbContext.SaveChangesAsync();
+            }
         }
     }
 }

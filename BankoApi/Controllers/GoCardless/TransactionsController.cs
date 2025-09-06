@@ -23,11 +23,13 @@ public class TransactionsController : ControllerBase
     [HttpGet("{accountId}")]
     public async Task<IActionResult> FetchAndStoreTransactions(string accountId)
     {
-        // TODO(): Handle the exceptions
+        // TODO(): This Endpoint has to change completely. The accountId in the parameter has to be the BankoAccountId
+        // Then it has to loop through the GoCardless table and retrieve the GoCardless account IDs. 
         var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
+        Guid bankoAccountId = _dbContext.Accounts.FirstOrDefault()?.AccountId ?? throw new ArgumentNullException(nameof(accountId));
 
         if (transactions == null) return NotFound();
-        _repository.StoreTransactions(_dbContext, transactions);
+        _repository.StoreTransactions(ctx:_dbContext, accountId: bankoAccountId, transactions);
 
         await _dbContext.SaveChangesAsync();
         return Ok("Transactions stored successfully.");
