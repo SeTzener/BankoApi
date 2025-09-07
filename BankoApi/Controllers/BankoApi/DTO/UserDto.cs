@@ -1,6 +1,6 @@
 namespace BankoApi.Controllers.BankoApi.DTO;
 
-public struct AccountDto
+public struct UserDto
 {
     public string Email { get; init; }
     public string Password { get; init; }

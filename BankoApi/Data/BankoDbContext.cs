@@ -10,7 +10,7 @@ public class BankoDbContext : DbContext
     {
     }
 
-    public DbSet<Account> Accounts { get; set; }
+    public DbSet<User> Users { get; set; }
     public DbSet<Institutions> Institutions { get; set; }
     public DbSet<Balance> Balances { get; set; }
     public DbSet<Requisition> Requisitions { get; set; }
@@ -39,9 +39,9 @@ public class BankoDbContext : DbContext
         base.OnModelCreating(modelBuilder);
         
         modelBuilder.Entity<Transaction>()
-            .HasOne(t => t.Account)
+            .HasOne(t => t.User)
             .WithMany()
-            .HasForeignKey("AccountId")
+            .HasForeignKey("UserId")
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired();
 
@@ -78,6 +78,6 @@ public class BankoDbContext : DbContext
         modelBuilder.Entity<CreditorAccount>()
             .HasIndex(da => da.Iban); // Add a unique constraint for IBAN
 
-        modelBuilder.Entity<Account>().HasIndex(a => a.Email).IsUnique();
+        modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
     }
 }

@@ -3,10 +3,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BankoApi.Data.Dao;
 
-[Table("Accounts")]
-public class Account
+[Table("Users")]
+public class User
 {
-    [Key] public Guid AccountId { get; set; }
+    [Key] public Guid UserId { get; set; }
 
     [Required] [StringLength(255)] public string Email { get; set; } = string.Empty;
 

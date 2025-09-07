@@ -1,4 +1,4 @@
-namespace BankoApi.Exceptions.Account;
+namespace BankoApi.Exceptions.User;
 
 public class EmailConflictException : Exception
 {
