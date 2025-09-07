@@ -3,7 +3,7 @@ using BankoApi.Controllers.BankoApi.Requests;
 using BankoApi.Controllers.BankoApi.Responses;
 using BankoApi.Controllers.BankoApi.Utils;
 using BankoApi.Data;
-using BankoApi.Exceptions.Account;
+using BankoApi.Exceptions.User;
 using BankoApi.Repository;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -12,24 +12,24 @@ namespace BankoApi.Controllers.BankoApi;
 
 [ApiController]
 [Route("[controller]")]
-public class AccountsController : ControllerBase
+public class UsersController : ControllerBase
 {
     private readonly BankoDbContext _dbContext;
-    private readonly AccountRepository _repository;
+    private readonly UserRepository _repository;
 
-    public AccountsController(BankoDbContext dbContext)
+    public UsersController(BankoDbContext dbContext)
     {
         _dbContext = dbContext;
-        _repository = new AccountRepository();
+        _repository = new UserRepository();
     }
 
     [HttpPost]
-    public async Task<IActionResult> NewAccount([FromBody] NewAccountRequest request)
+    public async Task<IActionResult> NewUser([FromBody] NewUserRequest request)
     {
         try
         {
-            var accountId = _repository.CreateAccount(
-                accountData: new AccountDto
+            var userId = _repository.CreateAccount(
+                userData: new UserDto
                 {
                     Email = request.Email,
                     Password = request.Password,
@@ -41,9 +41,9 @@ public class AccountsController : ControllerBase
                 context: _dbContext
             );
             await _dbContext.SaveChangesAsync();
-            return Ok(new AccountResponse
+            return Ok(new UserResponse
             {
-                AccountId = accountId,
+                AccountId = userId,
                 AccessToken = "ACCESS_TOKEN",
                 RefreshToken = "REFRESH_TOKEN",
                 ExpiresIn = 1234567890
@@ -54,7 +54,7 @@ public class AccountsController : ControllerBase
             Console.WriteLine(ex.Message);
             return Conflict(new ErrorResponse
             {
-                Message = AccountErrorMessages.EmailAlreadyExists.ToString()
+                Message = UserErrorMessages.EmailAlreadyExists.ToString()
             });
         }
         catch (Exception ex)
@@ -62,7 +62,7 @@ public class AccountsController : ControllerBase
             Console.WriteLine(ex.Message);
             return BadRequest(new ErrorResponse
             {
-                Message = AccountErrorMessages.SomethingWentWrong.ToString()
+                Message = UserErrorMessages.SomethingWentWrong.ToString()
             });
         }
     }
@@ -72,11 +72,11 @@ public class AccountsController : ControllerBase
     {
         try
         {
-            var accountId = _repository.ValidateAccount(_dbContext, request.Email, request.Password);
+            var userId = _repository.ValidateAccount(_dbContext, request.Email, request.Password);
 
-            return Ok(new AccountResponse
+            return Ok(new UserResponse
             {
-                AccountId = accountId,
+                AccountId = userId,
                 AccessToken = "ACCESS_TOKEN",
                 RefreshToken = "REFRESH_TOKEN",
                 ExpiresIn = 1234567890
@@ -87,15 +87,15 @@ public class AccountsController : ControllerBase
             Console.WriteLine(ex.Message);
             return Unauthorized(new ErrorResponse
             {
-                Message = AccountErrorMessages.WrongCredentials.ToString()
+                Message = UserErrorMessages.WrongCredentials.ToString()
             });
         }
-        catch (InactiveAccountException ex)
+        catch (InactiveUserException ex)
         {
             Console.WriteLine(ex.Message);
             return this.Forbidden(new ErrorResponse
             {
-                Message = AccountErrorMessages.InactiveAccount.ToString()
+                Message = UserErrorMessages.InactiveAccount.ToString()
             });
         }
         catch (Exception ex)
@@ -103,7 +103,7 @@ public class AccountsController : ControllerBase
             Console.WriteLine(ex.Message);
             return BadRequest(new ErrorResponse
             {
-                Message = AccountErrorMessages.SomethingWentWrong.ToString()
+                Message = UserErrorMessages.SomethingWentWrong.ToString()
             });
         }
     }

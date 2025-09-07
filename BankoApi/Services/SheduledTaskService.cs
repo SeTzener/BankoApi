@@ -51,9 +51,9 @@ public class ScheduledTaskService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
-        List<Guid> accountIds = dbContext.Accounts.Select(a => a.AccountId).ToList();
+        List<Guid> userIds = dbContext.Users.Select(a => a.UserId).ToList();
 
-        foreach (Guid accountId in accountIds)
+        foreach (Guid userId in userIds)
         {
             // Trigger the endpoint
             var transactions = await goCardlessService.GetTransactionsAsync(gcAccountId);
@@ -61,7 +61,7 @@ public class ScheduledTaskService : BackgroundService
             {
                 // Here I should loop through the GoCardless IDs to retrieve all the bank accounts transactions
                 var repository = new TransactionsRepository();
-                repository.StoreTransactions(ctx:dbContext, accountId: accountId, transactions: transactions);
+                repository.StoreTransactions(ctx:dbContext, userId: userId, transactions: transactions);
                 await dbContext.SaveChangesAsync();
             }
         }

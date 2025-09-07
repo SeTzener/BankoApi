@@ -1,6 +1,6 @@
 namespace BankoApi.Controllers.BankoApi.Responses;
 
-public class AccountResponse
+public class UserResponse
 {
     public Guid AccountId { get; set; }
     public string AccessToken { get; set; }
@@ -8,7 +8,7 @@ public class AccountResponse
     public long ExpiresIn { get; set; }
 }
 
-internal enum AccountErrorMessages
+internal enum UserErrorMessages
 {
     WrongCredentials,
     EmailAlreadyExists,

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BankoApi.Controllers.BankoApi.Requests;
 
-public class NewAccountRequest
+public class NewUserRequest
 {
     [EmailAddress] public string Email { get; set; }
 
