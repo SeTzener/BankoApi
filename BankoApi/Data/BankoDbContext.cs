@@ -12,7 +12,6 @@ public class BankoDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Balance> Balances { get; set; }
-    public DbSet<Requisition> Requisitions { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<ExpenseTag> ExpenseTag { get; set; }
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
