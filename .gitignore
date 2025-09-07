@@ -445,4 +445,3 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-/BankoApi/Migrations
