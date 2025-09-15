@@ -4,6 +4,7 @@ using BankoApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankoApi.Migrations
 {
     [DbContext(typeof(BankoDbContext))]
-    partial class BankoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250911204206_GoCardlessIntegration")]
+    partial class GoCardlessIntegration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -272,6 +275,7 @@ namespace BankoApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("BankTransactionCode")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("BookingDate")
