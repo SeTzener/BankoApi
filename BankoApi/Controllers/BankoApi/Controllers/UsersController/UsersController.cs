@@ -1,6 +1,7 @@
-﻿using BankoApi.Controllers.BankoApi.DTO;
-using BankoApi.Controllers.BankoApi.Requests;
-using BankoApi.Controllers.BankoApi.Responses;
+﻿using BankoApi.Controllers.BankoApi.Controllers.Responses;
+using BankoApi.Controllers.BankoApi.Controllers.UsersController.Requests;
+using BankoApi.Controllers.BankoApi.Controllers.UsersController.Responses;
+using BankoApi.Controllers.BankoApi.DTO;
 using BankoApi.Controllers.BankoApi.Utils;
 using BankoApi.Data;
 using BankoApi.Exceptions.User;
@@ -8,7 +9,7 @@ using BankoApi.Repository;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BankoApi.Controllers.BankoApi;
+namespace BankoApi.Controllers.BankoApi.Controllers.UsersController;
 
 [ApiController]
 [Route("[controller]")]

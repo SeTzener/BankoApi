@@ -1,6 +1,6 @@
 using BankoApi.Data.Dao;
 
-namespace BankoApi.Controllers.BankoApi.Responses;
+namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.Responses;
 
 public class GetExpenseTagsResponse
 {
