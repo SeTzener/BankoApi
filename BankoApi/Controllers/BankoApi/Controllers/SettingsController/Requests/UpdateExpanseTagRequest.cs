@@ -1,4 +1,4 @@
-namespace BankoApi.Controllers.BankoApi.Requests;
+namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.Requests;
 
 public class UpdateExpenseTagRequest
 {

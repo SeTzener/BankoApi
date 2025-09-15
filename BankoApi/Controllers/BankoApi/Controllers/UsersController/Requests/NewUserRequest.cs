@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace BankoApi.Controllers.BankoApi.Requests;
+namespace BankoApi.Controllers.BankoApi.Controllers.UsersController.Requests;
 
 public class NewUserRequest
 {
