@@ -17,7 +17,7 @@ public class Transaction
 
     public required string RemittanceInformationUnstructured { get; set; }
     public required List<string> RemittanceInformationUnstructuredArray { get; set; }
-    public required string BankTransactionCode { get; set; }
+    public string? BankTransactionCode { get; set; }
     public required string InternalTransactionId { get; set; }
     public string? CreditorName { get; set; }
     public CreditorAccount? CreditorAccount { get; set; }
