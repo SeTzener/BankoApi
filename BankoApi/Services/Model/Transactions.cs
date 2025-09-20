@@ -22,14 +22,14 @@ public class BankTransactions
 
 public class Booked
 {
-    public required string TransactionId { get; set; }
+    public string? TransactionId { get; set; }
     public required string BookingDate { get; set; }
     public required string ValueDate { get; set; }
     public required TransactionAmount TransactionAmount { get; set; }
     public DebtorAccount? DebtorAccount { get; set; }
     public required string RemittanceInformationUnstructured { get; set; }
     public required List<string> RemittanceInformationUnstructuredArray { get; set; }
-    public required string BankTransactionCode { get; set; }
+    public string? BankTransactionCode { get; set; }
     public required string InternalTransactionId { get; set; }
     public string? CreditorName { get; set; }
     public CreditorAccount? CreditorAccount { get; set; }

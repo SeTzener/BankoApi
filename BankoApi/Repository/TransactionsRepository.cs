@@ -1,5 +1,6 @@
 using BankoApi.Data;
 using BankoApi.Services.Model;
+using Microsoft.IdentityModel.Tokens;
 using PendingDto = BankoApi.Services.Model.Pending;
 
 namespace BankoApi.Repository;
@@ -27,7 +28,7 @@ public class TransactionsRepository
 
     private Transactions DiscardDuplicates(BankoDbContext dbContext, Transactions transactions)
     {
-        var storedTransactions = dbContext.Transactions.Select(it => it.Id).ToList();
+        var storedTransactions = dbContext.Transactions.Select(it => it.InternalTransactionId).ToList();
         var transactionsToStore = new Transactions
         {
             BankTransactions = new BankTransactions
@@ -37,8 +38,15 @@ public class TransactionsRepository
             }
         };
         foreach (var newTransaction in transactions.BankTransactions.Booked)
-            if (!storedTransactions.Contains(newTransaction.TransactionId))
+            
+            if (!storedTransactions.Contains(newTransaction.InternalTransactionId) && !storedTransactions.Contains(newTransaction.TransactionId))
+            {
+                if (newTransaction.TransactionId.IsNullOrEmpty())
+                {
+                    newTransaction.TransactionId = Guid.NewGuid().ToString();
+                }
                 transactionsToStore.BankTransactions.Booked.Add(newTransaction);
+            }   
 
         return transactionsToStore;
     }
