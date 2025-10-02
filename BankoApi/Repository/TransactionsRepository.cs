@@ -1,6 +1,9 @@
+using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
+using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Services.Model;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.RegularExpressions;
 using PendingDto = BankoApi.Services.Model.Pending;
 
 namespace BankoApi.Repository;
@@ -16,6 +19,21 @@ public class TransactionsRepository
                 .OrderByDescending(it => it.BookingDate);
 
         ctx.Transactions.AddRange(transactionsToStore);
+    }
+
+    public void SetEuaExpirationStatus(BankoDbContext dbContext, String message)
+    {
+        String agreementId = FindAgreementId(message);
+        // Look the ID on the DB and set the isEuaExpired to True
+        throw new NotImplementedException();        
+    }
+
+    private string FindAgreementId(string input)
+    {
+        string pattern = @"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+        Match match = Regex.Match(input, pattern);
+
+        return match.Success ? match.Value : throw new EndUserAgreementException(FetchAndStoreTransactionResponse.AgreementIdNotFound.ToString());
     }
 
     private void UpdatePendingTransactions(BankoDbContext dbContext, List<PendingDto> pendings)
