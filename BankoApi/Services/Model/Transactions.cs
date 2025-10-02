@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Services.Model;
 
@@ -27,8 +28,8 @@ public class Booked
     public required string ValueDate { get; set; }
     public required TransactionAmount TransactionAmount { get; set; }
     public DebtorAccount? DebtorAccount { get; set; }
-    public required string RemittanceInformationUnstructured { get; set; }
-    public required List<string> RemittanceInformationUnstructuredArray { get; set; }
+    public string? RemittanceInformationUnstructured { get; set; }
+    public List<string>? RemittanceInformationUnstructuredArray { get; set; }
     public string? BankTransactionCode { get; set; }
     public required string InternalTransactionId { get; set; }
     public string? CreditorName { get; set; }
@@ -59,8 +60,8 @@ public class Pending
 {
     public required string BookingDate { get; set; }
     public required TransactionAmount TransactionAmount { get; set; }
-    public required string RemittanceInformationUnstructured { get; set; }
-    public required List<string> RemittanceInformationUnstructuredArray { get; set; }
+    public string? RemittanceInformationUnstructured { get; set; }
+    public List<string>? RemittanceInformationUnstructuredArray { get; set; }
 }
 
 public static class TransactionsExtensions
@@ -83,8 +84,8 @@ public static class TransactionsExtensions
                 DebtorAccount = bookedTransaction.DebtorAccount != null
                     ? GetDebtorAccountId(bookedTransaction.DebtorAccount, dbContext)
                     : null,
-                RemittanceInformationUnstructured = bookedTransaction.RemittanceInformationUnstructured,
-                RemittanceInformationUnstructuredArray = bookedTransaction.RemittanceInformationUnstructuredArray,
+                RemittanceInformationUnstructured = bookedTransaction.RemittanceInformationUnstructured ?? "Transaction description not available",
+                RemittanceInformationUnstructuredArray = bookedTransaction.RemittanceInformationUnstructuredArray ?? new List<string> { "Transaction description not available" },
                 BankTransactionCode = bookedTransaction.BankTransactionCode,
                 InternalTransactionId = bookedTransaction.InternalTransactionId,
                 CreditorName = bookedTransaction.CreditorName,
@@ -110,8 +111,8 @@ public static class TransactionsExtensions
                 BookingDate = DateTime.Parse(pendingTransaction.BookingDate),
                 Amount = pendingTransaction.TransactionAmount.Amount,
                 Currency = pendingTransaction.TransactionAmount.Currency,
-                RemittanceInformationUnstructured = pendingTransaction.RemittanceInformationUnstructured,
-                RemittanceInformationUnstructuredArray = pendingTransaction.RemittanceInformationUnstructuredArray
+                RemittanceInformationUnstructured = pendingTransaction?.RemittanceInformationUnstructured ?? "Transaction description not available",
+                RemittanceInformationUnstructuredArray = pendingTransaction?.RemittanceInformationUnstructuredArray ?? new List<string> { "Transaction description not available" }
             }
         );
     }
