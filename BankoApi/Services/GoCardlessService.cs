@@ -1,11 +1,8 @@
-using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data.Dao;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Services.Model;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 
 namespace BankoApi.Services;
 
@@ -44,14 +41,6 @@ public class GoCardlessService
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<Transactions>();
-    }
-
-    private string FindAgreementId(string input)
-    {
-        string pattern = @"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
-        Match match = Regex.Match(input, pattern);
-
-        return match.Success ? match.Value : throw new EndUserAgreementException(FetchAndStoreTransactionResponse.AgreementIdNotFound.ToString());
     }
 
     public async Task<List<Institutions>> GetInstitutions()

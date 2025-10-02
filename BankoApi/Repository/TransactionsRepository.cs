@@ -1,4 +1,3 @@
-using Azure.Identity;
 using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
 using BankoApi.Exceptions.GoCardless.Transactions;
