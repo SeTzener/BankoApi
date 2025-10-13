@@ -25,10 +25,7 @@ public class BankAuthorization
 
     [Required] [MaxLength(50)] 
     public BankAuthorizationStaus Status { get; set; } = BankAuthorizationStaus.Processing;
-    
-    public string? AccessToken { get; set; }
-    public string? RefreshToken { get; set; }
-    public DateTime? ExpiresAt { get; set; }
+    public Boolean? IsAgreementExpired { get; set; }
     public String? AgreementId { get; set; } // Nullable
 
     // Metadata for UX

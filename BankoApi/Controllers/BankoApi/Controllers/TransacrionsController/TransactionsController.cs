@@ -1,10 +1,11 @@
-using BankoApi.Controllers.BankoApi.Requests;
+using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Requests;
+using BankoApi.Controllers.BankoApi.Controllers.TransacrionsController.Requests;
 using BankoApi.Data;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace BankoApi.Controllers.BankoApi;
+namespace BankoApi.Controllers.BankoApi.Controllers.TransacrionsController;
 
 [ApiController]
 [Route("[controller]")]

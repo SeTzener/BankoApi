@@ -1,4 +1,4 @@
-using BankoApi.Controllers.BankoApi.Responses;
+using BankoApi.Controllers.BankoApi.Controllers.Responses;
 using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
 using BankoApi.Exceptions.GoCardless.Transactions;
