@@ -16,7 +16,7 @@ public class BankoDbContext : DbContext
     public DbSet<ExpenseTag> ExpenseTag { get; set; }
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
     public DbSet<BankAccount> BankAccounts { get; set; }
-    public DbSet<BankAuthorization> bankAuthorizations { get; set; }
+    public DbSet<BankAuthorization> BankAuthorizations { get; set; }
     public DbSet<Pending> Pendings { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -99,6 +99,10 @@ public class BankoDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.Status)
+            .HasConversion<string>()  // This converts enum to string
+            .HasMaxLength(50);
         });
 
         // Configure BankAccount Entity

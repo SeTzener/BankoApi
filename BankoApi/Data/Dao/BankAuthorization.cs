@@ -11,22 +11,20 @@ public class BankAuthorization
     [Required]
     public Guid UserId { get; set; }
 
-    [Required]
-    [MaxLength(255)]
+    [MaxLength(50)]
     public String? RequisitionId { get; set; }
 
-    [Required]
-    [MaxLength(100)]
+    [MaxLength(50)]
     public String? InstitutionId { get; set; }
-
-    [Required]
-    [MaxLength(255)]
-    public String? ReferenceId { get; set; }
 
     [Required] [MaxLength(50)] 
     public BankAuthorizationStaus Status { get; set; } = BankAuthorizationStaus.Processing;
-    public Boolean? IsAgreementExpired { get; set; }
-    public String? AgreementId { get; set; } // Nullable
+
+    [MaxLength(50)]
+    public String? AgreementId { get; set; }
+
+    [MaxLength(50)]
+    public String? ReferenceId { get; set; }
 
     // Metadata for UX
     [MaxLength(255)]
@@ -38,7 +36,8 @@ public class BankAuthorization
     // Navigation Properties
     [ForeignKey("UserId")]
     public virtual User User { get; set; }
-    public virtual ICollection<BankAccount> BankAccounts { get; set; }
+    [ForeignKey("BankAccountId")]
+    public virtual ICollection<BankAccount>? BankAccounts { get; set; }
 }
 
 public enum BankAuthorizationStaus

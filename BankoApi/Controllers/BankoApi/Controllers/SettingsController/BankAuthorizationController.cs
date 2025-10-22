@@ -1,16 +1,19 @@
 ﻿using BankoApi.Controllers.BankoApi.Controllers.Responses;
+using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Requests;
 using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Responses;
 using BankoApi.Controllers.GoCardless.Requests;
 using BankoApi.Controllers.GoCardless.Responses;
+using BankoApi.Data.Dao;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsController
 {
     public partial class SettingsController
     {
         [HttpGet("BankAuthorization")]
-        public async Task<IActionResult> GetBankInfoAsync()
+        public async Task<IActionResult> GetBankAuthorization()
         {
             try
             {
@@ -28,6 +31,71 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
         }
 
+        [HttpPut("BankAuthorization")]
+        public async Task<IActionResult> UpsertBankAuthorization([FromBody] UpsertBankAuthorizationRequest request)
+        {
+            try
+            {
+                if (!_dbContext.Users.Where(x => x.UserId == request.UserId).Any())
+                {
+                    return Unauthorized();
+                }
+                // Find or create the authorization
+                var authorization = await _dbContext.BankAuthorizations
+                    .FirstOrDefaultAsync(ba => ba.AgreementId == request.AgreementId)
+                    ?? new BankAuthorization { AgreementId = request.AgreementId };
+
+                authorization.Status = request.Status;
+
+                // Update fields if they're provided in the request
+                if (request.InstitutionId != null)
+                    authorization.InstitutionId = request.InstitutionId;
+
+                if (request.RequisitionId != null)
+                    authorization.RequisitionId = request.RequisitionId;
+
+                if (request.ReferenceId != null)
+                    authorization.ReferenceId = request.ReferenceId;
+
+                if (request.InstitutionName != null)
+                    authorization.InstitutionName = request.InstitutionName;
+
+
+                if (authorization.Id == Guid.Empty) // It's new
+                {
+                    authorization.UserId = request.UserId; // TODO(): Take it from the token
+                    _dbContext.BankAuthorizations.Add(authorization);
+                }
+
+                authorization.UpdatedAt = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync();
+
+                return Ok(new UpsertBankAuthorizationResponse()
+                {
+                    Id = authorization.Id,
+                    UserId = authorization.UserId,
+                    RequisitionId = authorization.RequisitionId,
+                    InstitutionId = authorization.InstitutionId,
+                    Status = authorization.Status,
+                    AgreementId = authorization.AgreementId,
+                    ReferenceId = authorization.ReferenceId,
+                    InstitutionName = authorization.InstitutionName,
+                    CreatedAt = authorization.CreatedAt,
+                    UpdatedAt = authorization.UpdatedAt,
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return BadRequest(new ErrorResponse
+                {
+                    Message = BankAuthorizationErrorMessages.SomethingWentWrong.ToString()
+                });
+            }
+        }
+
+        // TODO: Cambiare in PUT
         [HttpPost("enduseragreement")]
         public async Task<IActionResult> UpsertEndUserAgreement([FromBody] UpsertEndUserAgreementRequest request)
         {
