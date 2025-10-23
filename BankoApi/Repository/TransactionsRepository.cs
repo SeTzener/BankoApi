@@ -24,8 +24,9 @@ public class TransactionsRepository
     public void SetEuaExpirationStatus(BankoDbContext dbContext, String message)
     {
         String agreementId = FindAgreementId(message);
-        // Look the ID on the DB and set the isEuaExpired to True
-        throw new NotImplementedException();        
+        var result = dbContext.BankAuthorizations.FirstOrDefault(r => r.AgreementId == agreementId);
+        result.Status = Data.Dao.BankAuthorizationStaus.Expired;
+        dbContext.SaveChanges();        
     }
 
     private string FindAgreementId(string input)
