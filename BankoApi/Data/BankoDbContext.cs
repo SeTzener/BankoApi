@@ -109,7 +109,7 @@ public class BankoDbContext : DbContext
         modelBuilder.Entity<BankAccount>(entity =>
         {
             // Create a unique constraint on the combination of (ConnectionId, AccountId)
-            entity.HasIndex(e => new { e.BankAuthorizationId, e.AccountId })
+            entity.HasIndex(e => new { e.BankAuthorizationId, e.BankAccountId })
                   .IsUnique();
 
             // Create an index on ConnectionId for quickly fetching accounts for a connection

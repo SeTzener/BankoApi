@@ -14,7 +14,7 @@ public class BankAccount
 
     [Required]
     [MaxLength(255)]
-    public string AccountId { get; set; } // The only non-nullable field from GC
+    public string BankAccountId { get; set; } // The only non-nullable field from GC
 
     
     [MaxLength(100)]
