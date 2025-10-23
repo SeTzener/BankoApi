@@ -65,9 +65,11 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
                 {
                     authorization.UserId = request.UserId; // TODO(): Take it from the token
                     _dbContext.BankAuthorizations.Add(authorization);
+                } else
+                {
+                    authorization.UpdatedAt = DateTime.UtcNow;
                 }
 
-                authorization.UpdatedAt = DateTime.UtcNow;
 
                 await _dbContext.SaveChangesAsync();
 
@@ -96,7 +98,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
         }
 
         // TODO: Cambiare in PUT
-        [HttpPost("enduseragreement")]
+        [HttpPost("Enduseragreement")]
         public async Task<IActionResult> UpsertEndUserAgreement([FromBody] UpsertEndUserAgreementRequest request)
         {
             try
