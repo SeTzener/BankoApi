@@ -2,13 +2,59 @@
 using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Requests;
 using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Responses;
 using BankoApi.Data.Dao;
+using BankoApi.Exceptions.Settings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsController
 {
     public partial class SettingsController
     {
+        [HttpGet("BankAccount")]
+        public async Task<IActionResult> GetBankAccount([FromQuery] List<String> bankAccountId)
+        {
+            try
+            {
+                if (bankAccountId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(bankAccountId));
+
+                List<BankAccountResponse> bankAccounts = new List<BankAccountResponse>();
+
+                foreach (var id in bankAccountId)
+                {
+                    var result = await _dbContext.BankAccounts.FirstOrDefaultAsync(ba => ba.BankAccountId == id)
+                            ?? throw new BankAccountNotFoundException(
+                                message: $"The requested BankAccountId: {bankAccountId} was not found.");
+                    bankAccounts.Add(new BankAccountResponse() {
+                        BankAuthorizationId = result.BankAuthorizationId,
+                        BankAccountId = result.BankAccountId,
+                        Iban = result.Iban,
+                        Bban = result.Bban,
+                        Currency = result.Currency,
+                        OwnerName = result.OwnerName,
+                        Product = result.Product,
+                        AccountName = result.AccountName,
+                        CreatedAt = result.CreatedAt,
+                        UpdatedAt = result.UpdatedAt,
+                    });
+                }
+
+                return Ok(new GetBankAccountsResponse(){ 
+                    Accounts = bankAccounts 
+                });
+            }
+            catch (BankAccountNotFoundException ex)
+            {
+                Console.WriteLine(ex.Message);
+                return NotFound(new ErrorResponse() { Message = GetBankAccountErrorMessages.AccountNotFound.ToString() });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return BadRequest(new ErrorResponse() { Message = ex.Message });
+            }
+        }
+
         [HttpPut("BankAccount")]
         public async Task<IActionResult> UpsertBankAccount([FromBody] UpsertBankAccountRequest request)
         {
