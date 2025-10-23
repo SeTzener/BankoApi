@@ -30,7 +30,7 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
     var connectionString =
         $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
-    options.UseSqlServer(connectionString);
+    options.UseLazyLoadingProxies().UseSqlServer(connectionString);
 });
 
 var baseUrl = builder.Configuration["GoCardlessAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");

@@ -39,13 +39,6 @@ public class BankoDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Transaction>()
-            .HasOne(t => t.User)
-            .WithMany()
-            .HasForeignKey("UserId")
-            .OnDelete(DeleteBehavior.Restrict)
-            .IsRequired();
-
-        modelBuilder.Entity<Transaction>()
             .HasOne(t => t.DebtorAccount) // Explicitly set the relationship
             .WithMany() // Assuming a one-to-many relationship
             .HasForeignKey("DebtorAccountId") // Define the FK explicitly
