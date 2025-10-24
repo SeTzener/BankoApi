@@ -26,8 +26,6 @@ public class TransactionsController : ControllerBase
     [HttpGet("{accountId}")]
     public async Task<IActionResult> FetchAndStoreTransactions(string accountId)
     {
-        // TODO(): This Endpoint has to change completely. The accountId in the parameter has to be the UserId
-        // Then it has to loop through the GoCardless table and retrieve the GoCardless account IDs. 
         try
         {
             var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
