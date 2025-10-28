@@ -4,6 +4,7 @@ using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Responses;
 using BankoApi.Controllers.GoCardless.Requests;
 using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data.Dao;
+using BankoApi.Exceptions.Settings;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,12 +14,35 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
     public partial class SettingsController
     {
         [HttpGet("BankAuthorization")]
-        public async Task<IActionResult> GetBankAuthorization()
+        public async Task<IActionResult> GetBankAuthorization(Guid userId)
         {
             try
             {
-                return Ok(new GetBankAuthorizationResponse
+                var result = _dbContext.BankAuthorizations.Where(ba => ba.UserId == userId).ToList();
+                if (result.Count == 0) throw new NoBankAuthorizationFoundException($"The user {userId} doesn't have any bank authorization process started yet.");
+                return Ok(new GetBankAuthorizationsResponse
                 {
+                    BankAuthorizations = result.ConvertAll(it => new BankAuth()
+                    {
+                        Id = it.Id,
+                        UserId = it.UserId,
+                        RequisitionId = it.RequisitionId,
+                        InstitutionId = it.InstitutionId,
+                        ReferenceId = it.ReferenceId,
+                        AgreementId = it.AgreementId,
+                        Status = it.Status,
+                        InstitutionName = it.InstitutionName,
+                        CreatedAt = it.CreatedAt,
+                        UpdatedAt = it.UpdatedAt
+                    })
+                });
+            }
+            catch (NoBankAuthorizationFoundException ex)
+            {
+                Console.WriteLine(ex.Message);
+                return NotFound(new ErrorResponse
+                {
+                    Message = BankAuthorizationErrorMessages.NoAuthorizationFound.ToString(),
                 });
             }
             catch (Exception ex)
@@ -65,7 +89,8 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
                 {
                     authorization.UserId = request.UserId; // TODO(): Take it from the token
                     _dbContext.BankAuthorizations.Add(authorization);
-                } else
+                }
+                else
                 {
                     authorization.UpdatedAt = DateTime.UtcNow;
                 }

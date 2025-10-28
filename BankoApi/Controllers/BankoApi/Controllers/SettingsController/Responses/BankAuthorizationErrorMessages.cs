@@ -2,6 +2,7 @@
 {
     public enum BankAuthorizationErrorMessages
     {
-        SomethingWentWrong
+        SomethingWentWrong,
+        NoAuthorizationFound
     }
 }
