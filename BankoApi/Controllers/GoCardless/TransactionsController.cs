@@ -23,16 +23,16 @@ public class TransactionsController : ControllerBase
         _repository = new TransactionsRepository();
     }
 
-    [HttpGet("{accountId}")]
-    public async Task<IActionResult> FetchAndStoreTransactions(string accountId)
+    [HttpGet("{bankAccountId}")]
+    public async Task<IActionResult> FetchAndStoreTransactions(Guid bankAccountId)
     {
         try
         {
-            var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
-            Guid userId = _dbContext.Users.FirstOrDefault()?.UserId ?? throw new ArgumentNullException(nameof(accountId));
+            var transactions = await _goCardlessService.GetTransactionsAsync(bankAccountId);
+            Guid userId = _dbContext.Users.FirstOrDefault()?.UserId ?? throw new ArgumentNullException(nameof(bankAccountId));
 
             if (transactions == null) return NotFound(FetchAndStoreTransactionResponse.NoTransactionsFound.ToString());
-            _repository.StoreTransactions(ctx: _dbContext, userId: userId, transactions);
+            _repository.StoreTransactions(ctx: _dbContext, userId: userId, bankAccountId: bankAccountId, transactions);
 
             await _dbContext.SaveChangesAsync();
             return Ok(FetchAndStoreTransactionResponse.TransactionsStoredSuccessfully.ToString());

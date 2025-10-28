@@ -6,6 +6,7 @@ public class Transaction
 {
     public required string Id { get; set; }
     public Guid UserId { get; set; }
+    public Guid BankAccountId { get; set; }
     public required DateTime BookingDate { get; set; }
     public required DateTime ValueDate { get; set; }
     public required string Amount { get; set; }

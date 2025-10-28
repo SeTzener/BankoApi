@@ -56,11 +56,12 @@ public class ScheduledTaskService : BackgroundService
             {
                 foreach (var gcAccountId in bankAccountIds)
                 {
-                    var transactions = await goCardlessService.GetTransactionsAsync(gcAccountId);
+                    Guid bankAccountId = Guid.Parse(gcAccountId);
+                    var transactions = await goCardlessService.GetTransactionsAsync(bankAccountId);
                     if (transactions != null)
                     {
                         var repository = new TransactionsRepository();
-                        repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions);
+                        repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
                         await dbContext.SaveChangesAsync();
                     }
                 }

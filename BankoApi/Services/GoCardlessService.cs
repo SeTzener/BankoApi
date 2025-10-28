@@ -21,7 +21,7 @@ public class GoCardlessService
     }
 
     // TODO():Change this Transactions from DAO to a Model dto
-    public async Task<Transactions?> GetTransactionsAsync(string accountId)
+    public async Task<Transactions?> GetTransactionsAsync(Guid accountId)
     {
         // TODO(): Manage failures
         var token = await _tokenService.GetAccessTokenAsync();
