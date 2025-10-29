@@ -1,4 +1,4 @@
-namespace BankoApi.Controllers.BankoApi.Responses;
+namespace BankoApi.Controllers.BankoApi.Controllers.UsersController.Responses;
 
 public class UserResponse
 {

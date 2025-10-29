@@ -1,6 +1,7 @@
 using BankoApi.Data;
 using BankoApi.Repository;
 using DotNetEnv;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Services;
 
@@ -42,27 +43,28 @@ public class ScheduledTaskService : BackgroundService
 
     private async void FetchAndStoreTransactions()
     {
-        Env.Load();
-        // TODO(): Change this to retrieve a list of accountIDs from the database
-        Console.WriteLine(DateTime.UtcNow);
-        var gcAccountId = Environment.GetEnvironmentVariable("GOCARDLESS_ACCOUNT_ID") ??
-                        throw new Exception("Environment variable GOCARDLESS_ACCOUNT_ID not set");
-
         using var scope = _scopeFactory.CreateScope();
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
-        List<Guid> userIds = dbContext.Users.Select(a => a.UserId).ToList();
 
+        List<Guid> userIds = dbContext.Users.Select(a => a.UserId).ToList();
         foreach (Guid userId in userIds)
         {
             // Trigger the endpoint
-            var transactions = await goCardlessService.GetTransactionsAsync(gcAccountId);
-            if (transactions != null)
+            var bankAccountIds = dbContext.BankAuthorizations.Where(ba => ba.UserId == userId).SelectMany(x => x.BankAccounts).Select(y => y.BankAccountId);
+            if (!bankAccountIds.IsNullOrEmpty())
             {
-                // Here I should loop through the GoCardless IDs to retrieve all the bank accounts transactions
-                var repository = new TransactionsRepository();
-                repository.StoreTransactions(ctx:dbContext, userId: userId, transactions: transactions);
-                await dbContext.SaveChangesAsync();
+                foreach (var gcAccountId in bankAccountIds)
+                {
+                    Guid bankAccountId = Guid.Parse(gcAccountId);
+                    var transactions = await goCardlessService.GetTransactionsAsync(bankAccountId);
+                    if (transactions != null)
+                    {
+                        var repository = new TransactionsRepository();
+                        repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
+                        await dbContext.SaveChangesAsync();
+                    }
+                }
             }
         }
     }

@@ -4,6 +4,7 @@ using BankoApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,16 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankoApi.Migrations
 {
     [DbContext(typeof(BankoDbContext))]
-    partial class BankoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251022013640_GoCardlessBankAuthorization")]
+    partial class GoCardlessBankAuthorization
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
-                .HasAnnotation("Proxies:ChangeTracking", false)
-                .HasAnnotation("Proxies:CheckEquality", false)
-                .HasAnnotation("Proxies:LazyLoading", true)
+                .HasAnnotation("ProductVersion", "9.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -53,14 +53,17 @@ namespace BankoApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AccountId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("AccountName")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<string>("BankAccountId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("BankAuthorizationId")
                         .HasColumnType("uniqueidentifier");
@@ -96,7 +99,7 @@ namespace BankoApi.Migrations
                     b.HasIndex("BankAuthorizationId")
                         .HasDatabaseName("idx_bank_accounts_connection_id");
 
-                    b.HasIndex("BankAuthorizationId", "BankAccountId")
+                    b.HasIndex("BankAuthorizationId", "AccountId")
                         .IsUnique();
 
                     b.ToTable("BankAccounts");
@@ -109,6 +112,10 @@ namespace BankoApi.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AgreementId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BankAccountId")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -265,9 +272,6 @@ namespace BankoApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("BankAccountId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("BankTransactionCode")
                         .HasColumnType("nvarchar(max)");
 
@@ -324,6 +328,8 @@ namespace BankoApi.Migrations
                     b.HasIndex("DebtorAccountId");
 
                     b.HasIndex("ExpenseTagId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Transactions");
                 });
@@ -423,11 +429,19 @@ namespace BankoApi.Migrations
                         .HasForeignKey("ExpenseTagId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("BankoApi.Data.Dao.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("CreditorAccount");
 
                     b.Navigation("DebtorAccount");
 
                     b.Navigation("ExpenseTag");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BankoApi.Data.Dao.BankAuthorization", b =>

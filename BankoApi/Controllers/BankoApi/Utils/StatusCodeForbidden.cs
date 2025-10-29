@@ -1,4 +1,4 @@
-using BankoApi.Controllers.BankoApi.Responses;
+using BankoApi.Controllers.BankoApi.Controllers.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankoApi.Controllers.BankoApi.Utils;

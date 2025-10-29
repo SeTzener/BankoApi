@@ -10,12 +10,12 @@ namespace BankoApi.Repository;
 
 public class TransactionsRepository
 {
-    public void StoreTransactions(BankoDbContext ctx, Guid userId, Transactions transactions)
+    public void StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
     {
         UpdatePendingTransactions(ctx, transactions.BankTransactions.Pending);
 
         var transactionsToStore = DiscardDuplicates(dbContext:ctx, transactions: transactions)
-                .ToTransactionDao(dbContext: ctx, userId: userId)
+                .ToTransactionDao(dbContext: ctx, userId: userId, bankAccountId: bankAccountId)
                 .OrderByDescending(it => it.BookingDate);
 
         ctx.Transactions.AddRange(transactionsToStore);
@@ -24,8 +24,9 @@ public class TransactionsRepository
     public void SetEuaExpirationStatus(BankoDbContext dbContext, String message)
     {
         String agreementId = FindAgreementId(message);
-        // Look the ID on the DB and set the isEuaExpired to True
-        throw new NotImplementedException();        
+        var result = dbContext.BankAuthorizations.FirstOrDefault(r => r.AgreementId == agreementId);
+        result.Status = Data.Dao.BankAuthorizationStaus.Expired;
+        dbContext.SaveChanges();        
     }
 
     private string FindAgreementId(string input)

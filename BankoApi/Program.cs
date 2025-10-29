@@ -1,10 +1,12 @@
-using System.Net.Http.Headers;
 using BankoApi;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
 using BankoApi.Services;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json", false, true);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {
@@ -24,7 +30,7 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
     var connectionString =
         $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
-    options.UseSqlServer(connectionString);
+    options.UseLazyLoadingProxies().UseSqlServer(connectionString);
 });
 
 var baseUrl = builder.Configuration["GoCardlessAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
@@ -41,9 +47,6 @@ builder.Services.AddHttpClient<GoCardlessService>(client =>
         new MediaTypeWithQualityHeaderValue("application/json"));
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Banko/1.0");
 });
-
-// TODO(): Remove this
-builder.Services.AddScoped<InstitutionsController>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

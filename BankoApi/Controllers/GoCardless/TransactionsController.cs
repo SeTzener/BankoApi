@@ -1,4 +1,4 @@
-using BankoApi.Controllers.BankoApi.Responses;
+using BankoApi.Controllers.BankoApi.Controllers.Responses;
 using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
 using BankoApi.Exceptions.GoCardless.Transactions;
@@ -23,18 +23,16 @@ public class TransactionsController : ControllerBase
         _repository = new TransactionsRepository();
     }
 
-    [HttpGet("{accountId}")]
-    public async Task<IActionResult> FetchAndStoreTransactions(string accountId)
+    [HttpGet("{bankAccountId}")]
+    public async Task<IActionResult> FetchAndStoreTransactions(Guid bankAccountId)
     {
-        // TODO(): This Endpoint has to change completely. The accountId in the parameter has to be the UserId
-        // Then it has to loop through the GoCardless table and retrieve the GoCardless account IDs. 
         try
         {
-            var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
-            Guid userId = _dbContext.Users.FirstOrDefault()?.UserId ?? throw new ArgumentNullException(nameof(accountId));
+            var transactions = await _goCardlessService.GetTransactionsAsync(bankAccountId);
+            Guid userId = _dbContext.Users.FirstOrDefault()?.UserId ?? throw new ArgumentNullException(nameof(bankAccountId));
 
             if (transactions == null) return NotFound(FetchAndStoreTransactionResponse.NoTransactionsFound.ToString());
-            _repository.StoreTransactions(ctx: _dbContext, userId: userId, transactions);
+            _repository.StoreTransactions(ctx: _dbContext, userId: userId, bankAccountId: bankAccountId, transactions);
 
             await _dbContext.SaveChangesAsync();
             return Ok(FetchAndStoreTransactionResponse.TransactionsStoredSuccessfully.ToString());

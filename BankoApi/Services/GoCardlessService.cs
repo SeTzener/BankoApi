@@ -21,7 +21,7 @@ public class GoCardlessService
     }
 
     // TODO():Change this Transactions from DAO to a Model dto
-    public async Task<Transactions?> GetTransactionsAsync(string accountId)
+    public async Task<Transactions?> GetTransactionsAsync(Guid accountId)
     {
         // TODO(): Manage failures
         var token = await _tokenService.GetAccessTokenAsync();
@@ -41,17 +41,6 @@ public class GoCardlessService
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<Transactions>();
-    }
-
-    public async Task<List<Institutions>> GetInstitutions()
-    {
-        var token = await _tokenService.GetAccessTokenAsync();
-        _httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", token);
-
-        var response = await _httpClient.GetAsync("institutions/?country=it");
-        response.EnsureSuccessStatusCode();
-        return response.Content.ReadFromJsonAsync<List<Institutions>>().Result ?? new List<Institutions>();
     }
 
     public async Task<PaginatedEndUserAgreements> GetEndUserAgreement()
