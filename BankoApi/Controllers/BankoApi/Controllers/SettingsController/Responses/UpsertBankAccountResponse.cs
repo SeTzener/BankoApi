@@ -6,7 +6,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.Responses
     public class UpsertBankAccountResponse
     {
         public Guid BankAuthorizationId { get; set; }
-        public String AccountId { get; set; }
+        public String BankAccountId { get; set; }
         public String? Iban { get; set; }
         public String? Bban { get; set; }
         public String? Currency { get; set; }
