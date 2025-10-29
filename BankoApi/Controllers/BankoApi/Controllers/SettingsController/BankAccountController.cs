@@ -60,10 +60,10 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
         {
             try
             {
-                var account = await _dbContext.BankAccounts.FirstOrDefaultAsync(a => a.BankAccountId == request.AccountId)
+                var account = await _dbContext.BankAccounts.FirstOrDefaultAsync(a => a.BankAccountId == request.BankAccountId)
                     ?? new BankAccount()
                     {
-                        BankAccountId = request.AccountId,
+                        BankAccountId = request.BankAccountId,
                         BankAuthorizationId = request.BankAuthorizationId
                     };
 
@@ -99,7 +99,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
                 return Ok(new UpsertBankAccountResponse()
                 {
                     BankAuthorizationId = account.BankAuthorizationId,
-                    AccountId = account.BankAccountId,
+                    BankAccountId = account.BankAccountId,
                     Iban = account.Iban,
                     Bban = account.Bban,
                     OwnerName = account.OwnerName,
