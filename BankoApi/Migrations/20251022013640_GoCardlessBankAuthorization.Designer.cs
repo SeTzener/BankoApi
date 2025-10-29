@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankoApi.Migrations
 {
     [DbContext(typeof(BankoDbContext))]
-    [Migration("20251013163715_GoCardlessIntegrationUpdate")]
-    partial class GoCardlessIntegrationUpdate
+    [Migration("20251022013640_GoCardlessBankAuthorization")]
+    partial class GoCardlessBankAuthorization
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -62,6 +62,9 @@ namespace BankoApi.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("BankAuthorizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -109,36 +112,36 @@ namespace BankoApi.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AgreementId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BankAccountId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("InstitutionId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("InstitutionName")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<bool?>("IsAgreementExpired")
-                        .HasColumnType("bit");
-
                     b.Property<string>("ReferenceId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("RequisitionId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<int>("Status")
                         .HasMaxLength(50)
-                        .HasColumnType("int");
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -149,7 +152,8 @@ namespace BankoApi.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RequisitionId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[RequisitionId] IS NOT NULL");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_bank_auth_status");
@@ -157,7 +161,7 @@ namespace BankoApi.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("idx_bank_auth_user_id");
 
-                    b.ToTable("bankAuthorizations");
+                    b.ToTable("BankAuthorizations");
                 });
 
             modelBuilder.Entity("BankoApi.Data.Dao.CreditorAccount", b =>
