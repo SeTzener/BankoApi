@@ -25,7 +25,7 @@ public class ScheduledTaskService : BackgroundService
             if (now > nextRun)
                 nextRun = nextRun.AddDays(1); // Ensure next run is tomorrow if current time passed the scheduled time
 
-            // Wait until the next scheduled time
+            //Wait until the next scheduled time
             var delay = nextRun - now;
             await Task.Delay(delay, stoppingToken);
 
