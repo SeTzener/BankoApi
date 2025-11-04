@@ -46,14 +46,38 @@ public class TransactionAmount
 
 public class DebtorAccount
 {
-    public required string Iban { get; set; }
-    public required string Bban { get; set; }
+    private string _iban = "XX0000000000000";
+    private string _bban = "00000000000";
+
+    public string Iban
+    {
+        get => _iban;
+        set => _iban = value ?? "XX0000000000000";
+    }
+
+    public string Bban
+    {
+        get => _bban;
+        set => _bban = value ?? "00000000000";
+    }
 }
 
 public class CreditorAccount
 {
-    public required string Iban { get; set; }
-    public required string Bban { get; set; }
+    private string _iban = "XX0000000000000";
+    private string _bban = "00000000000";
+
+    public string Iban
+    {
+        get => _iban;
+        set => _iban = value ?? "XX0000000000000";
+    }
+
+    public string Bban
+    {
+        get => _bban;
+        set => _bban = value ?? "00000000000";
+    }
 }
 
 public class Pending
