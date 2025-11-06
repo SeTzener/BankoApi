@@ -1,6 +1,6 @@
 using BankoApi.Data;
 using BankoApi.Repository;
-using DotNetEnv;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Services;
@@ -47,11 +47,15 @@ public class ScheduledTaskService : BackgroundService
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
 
-        List<Guid> userIds = dbContext.Users.Select(a => a.UserId).ToList();
+        List<Guid> userIds = await dbContext.Users.Select(a => a.UserId).ToListAsync();
         foreach (Guid userId in userIds)
         {
             // Trigger the endpoint
-            var bankAccountIds = dbContext.BankAuthorizations.Where(ba => ba.UserId == userId).SelectMany(x => x.BankAccounts).Select(y => y.BankAccountId);
+            var bankAccountIds = await dbContext.BankAuthorizations.Where(ba => ba.UserId == userId)
+                .SelectMany(x => x.BankAccounts)
+                .Select(y => y.BankAccountId)
+                .ToListAsync();
+
             if (!bankAccountIds.IsNullOrEmpty())
             {
                 foreach (var gcAccountId in bankAccountIds)
@@ -61,7 +65,7 @@ public class ScheduledTaskService : BackgroundService
                     if (transactions != null)
                     {
                         var repository = new TransactionsRepository();
-                        repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
+                        await repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
                         await dbContext.SaveChangesAsync();
                     }
                 }

@@ -2,6 +2,7 @@ using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Services.Model;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text.RegularExpressions;
 using PendingDto = BankoApi.Services.Model.Pending;
@@ -10,11 +11,11 @@ namespace BankoApi.Repository;
 
 public class TransactionsRepository
 {
-    public void StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
+    public async Task StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
     {
         UpdatePendingTransactions(ctx, transactions.BankTransactions.Pending);
 
-        var transactionsToStore = DiscardDuplicates(dbContext:ctx, transactions: transactions)
+        var transactionsToStore = DiscardDuplicates(dbContext:ctx, transactions: transactions).Result
                 .ToTransactionDao(dbContext: ctx, userId: userId, bankAccountId: bankAccountId)
                 .OrderByDescending(it => it.BookingDate);
 
@@ -45,9 +46,9 @@ public class TransactionsRepository
         dbContext.Pendings.AddRange(pendings.ToPendingDao());
     }
 
-    private Transactions DiscardDuplicates(BankoDbContext dbContext, Transactions transactions)
+    private async Task<Transactions> DiscardDuplicates(BankoDbContext dbContext, Transactions transactions)
     {
-        var storedTransactions = dbContext.Transactions.Select(it => it.InternalTransactionId).ToList();
+        var storedTransactions = await dbContext.Transactions.Select(it => it.InternalTransactionId).ToListAsync();
         var transactionsToStore = new Transactions
         {
             BankTransactions = new BankTransactions
