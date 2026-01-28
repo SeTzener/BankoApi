@@ -38,7 +38,9 @@ public class TransactionsController : ControllerBase
 
         // First get just the IDs with pagination
         var transactionIds = await _dbContext.Transactions
-            .Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate)
+            .Where(t => t.isDeleted != true &&
+                        t.BookingDate >= fromDate && 
+                        t.BookingDate <= toDate)
             .OrderByDescending(t => t.BookingDate)
             .Skip(skip)
             .Take(pageSize)
@@ -61,6 +63,16 @@ public class TransactionsController : ControllerBase
             PageNumber = pageNumber,
             PageSize = pageSize
         });
+    }
+
+    [HttpDelete("{transactionId}")]
+    public async Task<IActionResult> DeleteTransaction([FromRoute] string transactionId)
+    {
+        var transaction = _dbContext.Transactions.Find(transactionId);
+        if (transaction == null) return NotFound();
+        transaction.isDeleted = true;
+        await _dbContext.SaveChangesAsync();
+        return Ok("Transaction updated");
     }
 
     private void ValidateTransaction(int pageNumber, int pageSize, DateTime? fromDate, DateTime? toDate)
