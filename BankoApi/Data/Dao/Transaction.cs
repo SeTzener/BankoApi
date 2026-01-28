@@ -25,6 +25,7 @@ public class Transaction
     public List<string>? RemittanceInformationStructuredArray { get; set; }
     public string ExpenseTagId { get; set; }
     public string? Note { get; set; }
+    public bool isDeleted { get; set; }
     public virtual ExpenseTag? ExpenseTag { get; set; }
 }
 
