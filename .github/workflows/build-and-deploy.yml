@@ -60,12 +60,18 @@ jobs:
           key: ${{ secrets.SERVER_PASSWORD }}
           script: |
             # Upload the .env file to the server
-            echo "DB_USER=${{ secrets.DB_USER }}" > /home/${{ secrets.SERVER_USER }}/.env
-            echo "DB_PASS=${{ secrets.DB_PASS }}" >> /home/${{ secrets.SERVER_USER }}/.env
-            echo "GOOGLE_CLOUD_IP=${{ secrets.GOOGLE_CLOUD_IP }}" >> /home/${{ secrets.SERVER_USER }}/.env
-            echo "GOCARDLESS_ID=${{ secrets.GOCARDLESS_ID }}" >> /home/${{ secrets.SERVER_USER }}/.env
-            echo "GOCARDLESS_KEY=${{ secrets.GOCARDLESS_KEY }}" >> /home/${{ secrets.SERVER_USER }}/.env
-            echo "GOCARDLESS_ACCOUNT_ID=${{ secrets.GOCARDLESS_ACCOUNT_ID }}" >> /home/${{ secrets.SERVER_USER }}/.env
+            cat <<EOF > /home/${{ secrets.SERVER_USER }}/.env
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASS=${{ secrets.DB_PASS }}
+            GOOGLE_CLOUD_IP=${{ secrets.GOOGLE_CLOUD_IP }}
+            GOCARDLESS_ID=${{ secrets.GOCARDLESS_ID }}
+            GOCARDLESS_KEY=${{ secrets.GOCARDLESS_KEY }}
+            GOCARDLESS_ACCOUNT_ID=${{ secrets.GOCARDLESS_ACCOUNT_ID }}
+            EOF
+          
+            echo "---- DEBUG ----"
+              cat /home/${{ secrets.SERVER_USER }}/.env
+            echo "---------------"
 
             # Pull the latest Docker image
             docker pull ${{ secrets.DOCKER_USERNAME }}/banko-api:${{ github.sha }}
