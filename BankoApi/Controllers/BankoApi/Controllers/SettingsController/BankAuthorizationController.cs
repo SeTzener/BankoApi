@@ -123,7 +123,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
         }
 
         // TODO: Cambiare in PUT
-        [HttpPost("Enduseragreement")]
+        [HttpPost("end-user-agreement")]
         public async Task<IActionResult> UpsertEndUserAgreement([FromBody] UpsertEndUserAgreementRequest request)
         {
             try
