@@ -45,12 +45,12 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
             catch (BankAccountNotFoundException ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Bank account not found");
                 return NotFound(new ErrorResponse() { Message = GetBankAccountErrorMessages.AccountNotFound.ToString() });
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Failed to get bank account");
                 return BadRequest(new ErrorResponse() { Message = ex.Message });
             }
         }
@@ -110,7 +110,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Failed to upsert bank account");
                 return BadRequest(new ErrorResponse() { Message = ex.Message });
             }
         }

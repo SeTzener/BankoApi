@@ -39,7 +39,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
             catch (NoBankAuthorizationFoundException ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "No bank authorization found");
                 return NotFound(new ErrorResponse
                 {
                     Message = BankAuthorizationErrorMessages.NoAuthorizationFound.ToString(),
@@ -47,7 +47,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Failed to get bank authorization");
                 return BadRequest(new ErrorResponse
                 {
                     Message = BankAuthorizationErrorMessages.SomethingWentWrong.ToString()
@@ -114,7 +114,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Failed to upsert bank authorization");
                 return BadRequest(new ErrorResponse
                 {
                     Message = BankAuthorizationErrorMessages.SomethingWentWrong.ToString()
@@ -169,7 +169,7 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Failed to upsert end user agreement");
                 return BadRequest(new ErrorResponse() { Message = ex.Message });
             }
         }

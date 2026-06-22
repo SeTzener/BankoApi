@@ -13,10 +13,13 @@ public partial class SettingsController : ControllerBase
     private readonly BankoDbContext _dbContext;
     private readonly GoCardlessService _goCardlessService;
     private readonly BankAuthorizationRepository _repository;
-    public SettingsController(GoCardlessService goCardlessService, BankoDbContext dbContext)
+    private readonly ILogger<SettingsController> _logger;
+
+    public SettingsController(GoCardlessService goCardlessService, BankoDbContext dbContext, BankAuthorizationRepository repository, ILogger<SettingsController> logger)
     {
         _goCardlessService = goCardlessService;
         _dbContext = dbContext;
-        _repository = new BankAuthorizationRepository();
+        _repository = repository;
+        _logger = logger;
     }
 }

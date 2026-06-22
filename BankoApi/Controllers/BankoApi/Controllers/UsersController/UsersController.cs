@@ -17,11 +17,13 @@ public class UsersController : ControllerBase
 {
     private readonly BankoDbContext _dbContext;
     private readonly UserRepository _repository;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(BankoDbContext dbContext)
+    public UsersController(BankoDbContext dbContext, UserRepository repository, ILogger<UsersController> logger)
     {
         _dbContext = dbContext;
-        _repository = new UserRepository();
+        _repository = repository;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -52,7 +54,7 @@ public class UsersController : ControllerBase
         }
         catch (EmailConflictException ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "Email conflict");
             return Conflict(new ErrorResponse
             {
                 Message = UserErrorMessages.EmailAlreadyExists.ToString()
@@ -60,7 +62,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "Failed to create user");
             return BadRequest(new ErrorResponse
             {
                 Message = UserErrorMessages.SomethingWentWrong.ToString()
@@ -85,7 +87,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex) when (ex is EmailNotFoundException || ex is PasswordNotFoundException)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "Wrong credentials");
             return Unauthorized(new ErrorResponse
             {
                 Message = UserErrorMessages.WrongCredentials.ToString()
@@ -93,7 +95,7 @@ public class UsersController : ControllerBase
         }
         catch (InactiveUserException ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "Inactive account");
             return this.Forbidden(new ErrorResponse
             {
                 Message = UserErrorMessages.InactiveAccount.ToString()
@@ -101,7 +103,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "Login failed");
             return BadRequest(new ErrorResponse
             {
                 Message = UserErrorMessages.SomethingWentWrong.ToString()

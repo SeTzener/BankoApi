@@ -6,6 +6,8 @@ using BankoApi.Data.Dao;
 using BankoApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using BankoApi.Repository;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace BankoApi.Tests.Controllers;
@@ -26,7 +28,7 @@ public class GoCardlessTransactionsControllerTests
         using var ctx = CreateContext();
         var handlerMock = MockHelpers.CreateHandlerWithToken();
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx);
+        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
@@ -55,7 +57,7 @@ public class GoCardlessTransactionsControllerTests
                 Content = new StringContent("null", System.Text.Encoding.UTF8, "application/json")
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx);
+        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
@@ -95,7 +97,7 @@ public class GoCardlessTransactionsControllerTests
                 Content = new StringContent($"EUA was valid for 90 days and it expired {agreementId}")
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx);
+        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
@@ -121,7 +123,7 @@ public class GoCardlessTransactionsControllerTests
         var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
             new HttpResponseMessage(HttpStatusCode.InternalServerError));
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx);
+        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
@@ -159,7 +161,7 @@ public class GoCardlessTransactionsControllerTests
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx);
+        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
