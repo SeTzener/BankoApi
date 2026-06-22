@@ -31,7 +31,7 @@ public class ScheduledTaskService : BackgroundService
 
             try
             {
-                FetchAndStoreTransactions();
+                await FetchAndStoreTransactions();
             }
             catch (Exception ex)
             {
@@ -41,7 +41,7 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
-    private async void FetchAndStoreTransactions()
+    private async Task FetchAndStoreTransactions()
     {
         using var scope = _scopeFactory.CreateScope();
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
