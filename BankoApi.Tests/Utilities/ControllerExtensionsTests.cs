@@ -1,5 +1,4 @@
-using BankoApi.Controllers.BankoApi.Controllers.Responses;
-using BankoApi.Controllers.BankoApi.Utils;
+using BankoApi.Controllers.Shared;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankoApi.Tests.Utilities;

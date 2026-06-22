@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text.Json;
-using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Requests;
-using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Responses;
-using BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsController;
+using BankoApi.Controllers.Settings.Requests;
+using BankoApi.Controllers.Settings.Responses;
+using BankoApi.Controllers.Settings;
 using BankoApi.Controllers.GoCardless.Requests;
 using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
