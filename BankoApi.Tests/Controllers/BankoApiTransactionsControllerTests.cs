@@ -48,35 +48,38 @@ public class BankoApiTransactionsControllerTests
     }
 
     [Fact]
-    public async Task GetTransactions_InvalidPageNumber_ThrowsArgumentException()
+    public async Task GetTransactions_InvalidPageNumber_ReturnsBadRequest()
     {
         using var ctx = CreateContext();
         var controller = new TransactionsController(ctx);
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            controller.GetTransactions(pageNumber: 0));
+        var result = await controller.GetTransactions(pageNumber: 0);
+
+        Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
-    public async Task GetTransactions_InvalidPageSize_ThrowsArgumentException()
+    public async Task GetTransactions_InvalidPageSize_ReturnsBadRequest()
     {
         using var ctx = CreateContext();
         var controller = new TransactionsController(ctx);
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            controller.GetTransactions(pageSize: 0));
+        var result = await controller.GetTransactions(pageSize: 0);
+
+        Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
-    public async Task GetTransactions_FromDateAfterToDate_ThrowsArgumentException()
+    public async Task GetTransactions_FromDateAfterToDate_ReturnsBadRequest()
     {
         using var ctx = CreateContext();
         var controller = new TransactionsController(ctx);
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            controller.GetTransactions(
-                fromDate: new DateTime(2024, 12, 31),
-                toDate: new DateTime(2024, 1, 1)));
+        var result = await controller.GetTransactions(
+            fromDate: new DateTime(2024, 12, 31),
+            toDate: new DateTime(2024, 1, 1));
+
+        Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
