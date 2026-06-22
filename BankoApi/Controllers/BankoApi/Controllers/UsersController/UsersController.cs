@@ -60,14 +60,6 @@ public class UsersController : ControllerBase
                 Message = UserErrorMessages.EmailAlreadyExists.ToString()
             });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create user");
-            return BadRequest(new ErrorResponse
-            {
-                Message = UserErrorMessages.SomethingWentWrong.ToString()
-            });
-        }
     }
 
     [HttpPost("login")]
@@ -99,14 +91,6 @@ public class UsersController : ControllerBase
             return this.Forbidden(new ErrorResponse
             {
                 Message = UserErrorMessages.InactiveAccount.ToString()
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Login failed");
-            return BadRequest(new ErrorResponse
-            {
-                Message = UserErrorMessages.SomethingWentWrong.ToString()
             });
         }
     }

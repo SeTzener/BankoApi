@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
@@ -23,17 +24,30 @@ public class GoCardlessTransactionsControllerTests
     }
 
     [Fact]
-    public async Task FetchAndStoreTransactions_NoUser_ReturnsWithNoUser()
+    public async Task FetchAndStoreTransactions_NoUser_ThrowsArgumentNullException()
     {
         using var ctx = CreateContext();
-        var handlerMock = MockHelpers.CreateHandlerWithToken();
+        var transactionsResponse = new
+        {
+            transactions = new
+            {
+                booked = Array.Empty<object>(),
+                pending = Array.Empty<object>()
+            }
+        };
+
+        var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(transactionsResponse,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
-        var result = await controller.FetchAndStoreTransactions(bankAccountId);
-
-        Assert.IsType<BadRequestObjectResult>(result);
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            controller.FetchAndStoreTransactions(bankAccountId));
     }
 
     [Fact]
@@ -106,7 +120,7 @@ public class GoCardlessTransactionsControllerTests
     }
 
     [Fact]
-    public async Task FetchAndStoreTransactions_GeneralException_ReturnsBadRequest()
+    public async Task FetchAndStoreTransactions_GeneralException_ThrowsHttpRequestException()
     {
         using var ctx = CreateContext();
         ctx.Users.Add(new User
@@ -126,9 +140,8 @@ public class GoCardlessTransactionsControllerTests
         var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
         var bankAccountId = Guid.NewGuid();
 
-        var result = await controller.FetchAndStoreTransactions(bankAccountId);
-
-        Assert.IsType<BadRequestObjectResult>(result);
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            controller.FetchAndStoreTransactions(bankAccountId));
     }
 
     [Fact]

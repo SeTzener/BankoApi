@@ -45,133 +45,97 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
                     Message = BankAuthorizationErrorMessages.NoAuthorizationFound.ToString(),
                 });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get bank authorization");
-                return BadRequest(new ErrorResponse
-                {
-                    Message = BankAuthorizationErrorMessages.SomethingWentWrong.ToString()
-                });
-            }
         }
 
         [HttpPut("BankAuthorization")]
         public async Task<IActionResult> UpsertBankAuthorization([FromBody] UpsertBankAuthorizationRequest request)
         {
-            try
+            if (!_dbContext.Users.Where(x => x.UserId == request.UserId).Any())
             {
-                if (!_dbContext.Users.Where(x => x.UserId == request.UserId).Any())
-                {
-                    return Unauthorized();
-                }
-                // Find or create the authorization
-                var authorization = await _dbContext.BankAuthorizations
-                    .FirstOrDefaultAsync(ba => ba.AgreementId == request.AgreementId)
-                    ?? new BankAuthorization { AgreementId = request.AgreementId };
-
-                authorization.Status = request.Status;
-
-                // Update fields if they're provided in the request
-                if (request.InstitutionId != null)
-                    authorization.InstitutionId = request.InstitutionId;
-
-                if (request.RequisitionId != null)
-                    authorization.RequisitionId = request.RequisitionId;
-
-                if (request.ReferenceId != null)
-                    authorization.ReferenceId = request.ReferenceId;
-
-                if (request.InstitutionName != null)
-                    authorization.InstitutionName = request.InstitutionName;
-
-
-                if (authorization.Id == Guid.Empty) // It's new
-                {
-                    authorization.UserId = request.UserId; // TODO(): Take it from the token
-                    _dbContext.BankAuthorizations.Add(authorization);
-                }
-                else
-                {
-                    authorization.UpdatedAt = DateTime.UtcNow;
-                }
-
-
-                await _dbContext.SaveChangesAsync();
-
-                return Ok(new UpsertBankAuthorizationResponse()
-                {
-                    Id = authorization.Id,
-                    UserId = authorization.UserId,
-                    RequisitionId = authorization.RequisitionId,
-                    InstitutionId = authorization.InstitutionId,
-                    Status = authorization.Status,
-                    AgreementId = authorization.AgreementId,
-                    ReferenceId = authorization.ReferenceId,
-                    InstitutionName = authorization.InstitutionName,
-                    CreatedAt = authorization.CreatedAt,
-                    UpdatedAt = authorization.UpdatedAt,
-                });
+                return Unauthorized();
             }
-            catch (Exception ex)
+
+            var authorization = await _dbContext.BankAuthorizations
+                .FirstOrDefaultAsync(ba => ba.AgreementId == request.AgreementId)
+                ?? new BankAuthorization { AgreementId = request.AgreementId };
+
+            authorization.Status = request.Status;
+
+            if (request.InstitutionId != null)
+                authorization.InstitutionId = request.InstitutionId;
+
+            if (request.RequisitionId != null)
+                authorization.RequisitionId = request.RequisitionId;
+
+            if (request.ReferenceId != null)
+                authorization.ReferenceId = request.ReferenceId;
+
+            if (request.InstitutionName != null)
+                authorization.InstitutionName = request.InstitutionName;
+
+            if (authorization.Id == Guid.Empty)
             {
-                _logger.LogError(ex, "Failed to upsert bank authorization");
-                return BadRequest(new ErrorResponse
-                {
-                    Message = BankAuthorizationErrorMessages.SomethingWentWrong.ToString()
-                });
+                authorization.UserId = request.UserId;
+                _dbContext.BankAuthorizations.Add(authorization);
             }
+            else
+            {
+                authorization.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new UpsertBankAuthorizationResponse()
+            {
+                Id = authorization.Id,
+                UserId = authorization.UserId,
+                RequisitionId = authorization.RequisitionId,
+                InstitutionId = authorization.InstitutionId,
+                Status = authorization.Status,
+                AgreementId = authorization.AgreementId,
+                ReferenceId = authorization.ReferenceId,
+                InstitutionName = authorization.InstitutionName,
+                CreatedAt = authorization.CreatedAt,
+                UpdatedAt = authorization.UpdatedAt,
+            });
         }
 
-        // TODO: Cambiare in PUT
         [HttpPost("end-user-agreement")]
         public async Task<IActionResult> UpsertEndUserAgreement([FromBody] UpsertEndUserAgreementRequest request)
         {
-            try
+            var eua = await _goCardlessService.GetEndUserAgreement();
+            EndUserAgreement? validEua = _repository.HasValidNonAcceptedAgreement(eua);
+
+            if (validEua == null)
             {
-                // Check del GET Eua, se ce n'è una o più valide resitituire quella con più giorni prima della prossima expire date.
-                // Se non ce n'è una disponibile, creare un nuovo EUA
-                // Creare una nuova Requisition contentente Agreement, Reference e Institution
-                // Salvare tutti i nuovi dati sul DB
-
-                var eua = await _goCardlessService.GetEndUserAgreement();
-                EndUserAgreement? validEua = _repository.HasValidNonAcceptedAgreement(eua);
-
-                if (validEua == null)
+                if (request.InstitutionId != null && request.DaysOfAccess != null)
                 {
-                    if (request.InstitutionId != null && request.DaysOfAccess != null)
-                    {
-                        validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: request.InstitutionId, daysOfAccess: request.DaysOfAccess.Value);
-                    }
-                    else
-                    {
-                        String institutionId = "BIEN_SPAREBANK_BIENNOK1"; // TODO: prendere l'insitutionId dal DB
-                        int daysOfAccess = eua.Results.Where(e => e.InstitutionId == institutionId).First().AccessValidForDays;
-
-                        validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: institutionId, daysOfAccess: daysOfAccess);
-                    }
+                    validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: request.InstitutionId, daysOfAccess: request.DaysOfAccess.Value);
                 }
-
-                var requisition = await _goCardlessService.CreateRequisition(
-                    institutionId: validEua.InstitutionId,
-                    agreementId: validEua.Id
-                );
-
-                // TODO: Salvare sul DB tutte le info necessarie
-
-                return Ok(new UpsertEndUserAgreementResponse()
+                else
                 {
-                    AgreementId = requisition.Agreement,
-                    Link = requisition.Link,
-                    InstitutionId = requisition.InstitutionId,
-                    RequisitionId = requisition.Id,
-                    ReferenceId = requisition.Reference
-                });
+                    String institutionId = "BIEN_SPAREBANK_BIENNOK1"; // TODO: prendere l'insitutionId dal DB
+                    int daysOfAccess = eua.Results.Where(e => e.InstitutionId == institutionId).First().AccessValidForDays;
+
+                    validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: institutionId, daysOfAccess: daysOfAccess);
+                }
             }
-            catch (Exception ex)
+
+            var requisition = await _goCardlessService.CreateRequisition(
+                institutionId: validEua.InstitutionId,
+                agreementId: validEua.Id
+            );
+
+            // TODO: Salvare sul DB tutte le info necessarie
+
+            return Ok(new UpsertEndUserAgreementResponse()
             {
-                _logger.LogError(ex, "Failed to upsert end user agreement");
-                return BadRequest(new ErrorResponse() { Message = ex.Message });
-            }
+                AgreementId = requisition.Agreement,
+                Link = requisition.Link,
+                InstitutionId = requisition.InstitutionId,
+                RequisitionId = requisition.Id,
+                ReferenceId = requisition.Reference
+            });
         }
     }
 }
