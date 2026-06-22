@@ -1,6 +1,6 @@
-using BankoApi.Controllers.BankoApi.Controllers.SettingsController.Requests;
-using BankoApi.Controllers.BankoApi.Controllers.TransacrionsController;
-using BankoApi.Controllers.BankoApi.Controllers.TransacrionsController.Requests;
+using BankoApi.Controllers.Settings.Requests;
+using BankoApi.Controllers.Transactions;
+using BankoApi.Controllers.Transactions.Requests;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using Microsoft.AspNetCore.Mvc;

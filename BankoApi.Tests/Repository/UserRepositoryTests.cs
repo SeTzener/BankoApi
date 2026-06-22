@@ -1,4 +1,4 @@
-using BankoApi.Controllers.BankoApi.DTO;
+using BankoApi.Controllers.Shared.DTO;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Exceptions.User;

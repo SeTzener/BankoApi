@@ -1,4 +1,4 @@
-using BankoApi.Controllers.BankoApi.Controllers.Responses;
+using BankoApi.Controllers.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 

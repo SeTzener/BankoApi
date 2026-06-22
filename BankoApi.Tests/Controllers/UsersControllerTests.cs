@@ -1,5 +1,5 @@
-using BankoApi.Controllers.BankoApi.Controllers.UsersController;
-using BankoApi.Controllers.BankoApi.Controllers.UsersController.Requests;
+using BankoApi.Controllers.Users;
+using BankoApi.Controllers.Users.Requests;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Repository;
