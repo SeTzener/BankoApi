@@ -25,7 +25,12 @@ public class TransactionsController : ControllerBase
         DateTime? fromDate = null,
         DateTime? toDate = null)
     {
-        ValidateTransaction(pageNumber, pageSize, fromDate, toDate);
+        if (pageNumber < 1 || pageSize < 1)
+            return BadRequest("Page number and page size must be greater than zero.");
+
+        if (fromDate > toDate)
+            return BadRequest("The fromDate cannot be greater than toDate.");
+
         toDate ??= DateTime.UtcNow;
         fromDate ??= _dbContext.Transactions.Min(t => t.BookingDate);
 
@@ -73,18 +78,6 @@ public class TransactionsController : ControllerBase
         transaction.isDeleted = true;
         await _dbContext.SaveChangesAsync();
         return Ok("Transaction updated");
-    }
-
-    private void ValidateTransaction(int pageNumber, int pageSize, DateTime? fromDate, DateTime? toDate)
-    {
-        if (pageNumber < 1 || pageSize < 1)
-            throw new ArgumentException("Page number and page size must be greater than zero.");
-
-        if (fromDate != null)
-        {
-            toDate ??= DateTime.UtcNow;
-            if (fromDate > toDate) throw new ArgumentException("The fromDate cannot be greater than toDate.");
-        }
     }
 
     [HttpPut("expense-tag")]
