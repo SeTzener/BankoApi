@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankoApi", "BankoApi\BankoApi.csproj", "{E60212A3-F565-4152-9E1B-59F145064049}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankoApi.Tests", "BankoApi.Tests\BankoApi.Tests.csproj", "{01c1aabf-387e-41ad-80b8-21a50863d8a7}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Elementi di soluzione", "Elementi di soluzione", "{E14D32B1-E49F-479E-98F3-B37E2336F0CD}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
@@ -23,6 +25,10 @@ Global
 		{E60212A3-F565-4152-9E1B-59F145064049}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E60212A3-F565-4152-9E1B-59F145064049}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E60212A3-F565-4152-9E1B-59F145064049}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01c1aabf-387e-41ad-80b8-21a50863d8a7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01c1aabf-387e-41ad-80b8-21a50863d8a7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01c1aabf-387e-41ad-80b8-21a50863d8a7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01c1aabf-387e-41ad-80b8-21a50863d8a7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
