@@ -14,10 +14,11 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
         [HttpGet("BankAccount")]
         public async Task<IActionResult> GetBankAccount([FromQuery] List<String> bankAccountId)
         {
+            if (bankAccountId.IsNullOrEmpty())
+                return BadRequest(new ErrorResponse() { Message = "Bank account IDs are required" });
+
             try
             {
-                if (bankAccountId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(bankAccountId));
-
                 List<BankAccountResponse> bankAccounts = new List<BankAccountResponse>();
 
                 foreach (var id in bankAccountId)
@@ -48,71 +49,58 @@ namespace BankoApi.Controllers.BankoApi.Controllers.SettingsController.SettingsC
                 _logger.LogError(ex, "Bank account not found");
                 return NotFound(new ErrorResponse() { Message = GetBankAccountErrorMessages.AccountNotFound.ToString() });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get bank account");
-                return BadRequest(new ErrorResponse() { Message = ex.Message });
-            }
         }
 
         [HttpPut("BankAccount")]
         public async Task<IActionResult> UpsertBankAccount([FromBody] UpsertBankAccountRequest request)
         {
-            try
+            var account = await _dbContext.BankAccounts.FirstOrDefaultAsync(a => a.BankAccountId == request.BankAccountId)
+                ?? new BankAccount()
+                {
+                    BankAccountId = request.BankAccountId,
+                    BankAuthorizationId = request.BankAuthorizationId
+                };
+
+            if (request.Iban != null)
+                account.Iban = request.Iban;
+
+            if (request.Bban != null)
+                account.Bban = request.Bban;
+
+            if (request.OwnerName != null)
+                account.OwnerName = request.OwnerName;
+
+            if (request.Currency != null)
+                account.Currency = request.Currency;
+
+            if (request.Product != null)
+                account.Product = request.Product;
+
+            if (request.AccountName != null)
+                account.AccountName = request.AccountName;
+
+            if (account.Id == Guid.Empty)
             {
-                var account = await _dbContext.BankAccounts.FirstOrDefaultAsync(a => a.BankAccountId == request.BankAccountId)
-                    ?? new BankAccount()
-                    {
-                        BankAccountId = request.BankAccountId,
-                        BankAuthorizationId = request.BankAuthorizationId
-                    };
-
-                if (request.Iban != null)
-                    account.Iban = request.Iban;
-
-                if (request.Bban != null)
-                    account.Bban = request.Bban;
-
-                if (request.OwnerName != null)
-                    account.OwnerName = request.OwnerName;
-
-                if (request.Currency != null)
-                    account.Currency = request.Currency;
-
-                if (request.Product != null)
-                    account.Product = request.Product;
-
-                if (request.AccountName != null)
-                    account.AccountName = request.AccountName;
-
-                if (account.Id == Guid.Empty)
-                {
-                    _dbContext.Add(account);
-                }
-                else
-                {
-                    account.UpdatedAt = DateTime.UtcNow;
-                }
-
-                await _dbContext.SaveChangesAsync();
-
-                return Ok(new UpsertBankAccountResponse()
-                {
-                    BankAuthorizationId = account.BankAuthorizationId,
-                    BankAccountId = account.BankAccountId,
-                    Iban = account.Iban,
-                    Bban = account.Bban,
-                    OwnerName = account.OwnerName,
-                    Currency = account.Currency,
-                    Product = account.Product,
-                    AccountName = account.AccountName
-                });
+                _dbContext.Add(account);
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "Failed to upsert bank account");
-                return BadRequest(new ErrorResponse() { Message = ex.Message });
+                account.UpdatedAt = DateTime.UtcNow;
             }
+
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new UpsertBankAccountResponse()
+            {
+                BankAuthorizationId = account.BankAuthorizationId,
+                BankAccountId = account.BankAccountId,
+                Iban = account.Iban,
+                Bban = account.Bban,
+                OwnerName = account.OwnerName,
+                Currency = account.Currency,
+                Product = account.Product,
+                AccountName = account.AccountName
+            });
         }
     }
 }

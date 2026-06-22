@@ -48,10 +48,5 @@ public class TransactionsController : ControllerBase
                 Message = FetchAndStoreTransactionResponse.EndUserAgreementExpired.ToString()
             });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to fetch and store transactions");
-            return BadRequest(new ErrorResponse() { Message = FetchAndStoreTransactionResponse.SomethingWentWrong.ToString() });
-        }
     }
 }

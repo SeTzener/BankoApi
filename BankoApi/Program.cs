@@ -1,6 +1,7 @@
 using BankoApi;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
+using BankoApi.Filters;
 using BankoApi.Logging;
 using BankoApi.Repository;
 using BankoApi.Services;
@@ -22,7 +23,10 @@ builder.Logging.AddConsole(o => o.FormatterName = "Custom");
 builder.Logging.AddConsoleFormatter<CustomConsoleFormatter, ConsoleFormatterOptions>();
 
 // Add services to the container.
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<GlobalExceptionFilter>();
+}).AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
