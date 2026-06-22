@@ -15,7 +15,7 @@ public class TransactionsRepository
     {
         UpdatePendingTransactions(ctx, transactions.BankTransactions.Pending);
 
-        var transactionsToStore = DiscardDuplicates(dbContext:ctx, transactions: transactions).Result
+        var transactionsToStore = (await DiscardDuplicates(dbContext:ctx, transactions: transactions))
                 .ToTransactionDao(dbContext: ctx, userId: userId, bankAccountId: bankAccountId)
                 .OrderByDescending(it => it.BookingDate);
 
