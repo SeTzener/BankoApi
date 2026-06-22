@@ -1,10 +1,12 @@
 using BankoApi;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
+using BankoApi.Logging;
 using BankoApi.Repository;
 using BankoApi.Services;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Console;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -15,6 +17,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configuration setup (assuming IConfiguration is injected)
 builder.Configuration.AddJsonFile("appsettings.json", false, true);
+
+builder.Logging.AddConsole(o => o.FormatterName = "Custom");
+builder.Logging.AddConsoleFormatter<CustomConsoleFormatter, ConsoleFormatterOptions>();
 
 // Add services to the container.
 builder.Services.AddControllers().AddJsonOptions(options =>
