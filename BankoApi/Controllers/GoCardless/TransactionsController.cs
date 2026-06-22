@@ -32,7 +32,7 @@ public class TransactionsController : ControllerBase
             Guid userId = _dbContext.Users.FirstOrDefault()?.UserId ?? throw new ArgumentNullException(nameof(bankAccountId));
 
             if (transactions == null) return NotFound(FetchAndStoreTransactionResponse.NoTransactionsFound.ToString());
-            _repository.StoreTransactions(ctx: _dbContext, userId: userId, bankAccountId: bankAccountId, transactions);
+            await _repository.StoreTransactions(ctx: _dbContext, userId: userId, bankAccountId: bankAccountId, transactions);
 
             await _dbContext.SaveChangesAsync();
             return Ok(FetchAndStoreTransactionResponse.TransactionsStoredSuccessfully.ToString());
