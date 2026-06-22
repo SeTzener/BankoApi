@@ -9,10 +9,12 @@ public class ScheduledTaskService : BackgroundService
 {
     private readonly TimeSpan _executionTime = new(08, 00, 00);
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<ScheduledTaskService> _logger;
 
-    public ScheduledTaskService(IServiceScopeFactory scopeFactory)
+    public ScheduledTaskService(IServiceScopeFactory scopeFactory, ILogger<ScheduledTaskService> logger)
     {
         _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,8 +37,7 @@ public class ScheduledTaskService : BackgroundService
             }
             catch (Exception ex)
             {
-                // Handle exceptions (log errors, etc.)
-                Console.WriteLine($"Error occurred: {ex.Message}");
+                _logger.LogError(ex, "Error occurred while fetching and storing transactions");
             }
         }
     }
@@ -47,10 +48,10 @@ public class ScheduledTaskService : BackgroundService
         var goCardlessService = scope.ServiceProvider.GetRequiredService<GoCardlessService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
 
+        var repository = scope.ServiceProvider.GetRequiredService<TransactionsRepository>();
         List<Guid> userIds = await dbContext.Users.Select(a => a.UserId).ToListAsync();
         foreach (Guid userId in userIds)
         {
-            // Trigger the endpoint
             var bankAccountIds = await dbContext.BankAuthorizations.Where(ba => ba.UserId == userId)
                 .SelectMany(x => x.BankAccounts)
                 .Select(y => y.BankAccountId)
@@ -64,7 +65,6 @@ public class ScheduledTaskService : BackgroundService
                     var transactions = await goCardlessService.GetTransactionsAsync(bankAccountId);
                     if (transactions != null)
                     {
-                        var repository = new TransactionsRepository();
                         await repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
                         await dbContext.SaveChangesAsync();
                     }

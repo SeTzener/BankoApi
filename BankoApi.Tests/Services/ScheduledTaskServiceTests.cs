@@ -1,8 +1,10 @@
 using BankoApi.Data;
 using BankoApi.Data.Dao;
+using BankoApi.Repository;
 using BankoApi.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace BankoApi.Tests.Services;
@@ -24,6 +26,8 @@ public class ScheduledTaskServiceTests
             .Returns(ctx);
         serviceProviderMock.Setup(x => x.GetService(typeof(GoCardlessService)))
             .Returns(goCardlessService);
+        serviceProviderMock.Setup(x => x.GetService(typeof(TransactionsRepository)))
+            .Returns(new TransactionsRepository());
 
         var scopeMock = new Mock<IServiceScope>();
         scopeMock.Setup(x => x.ServiceProvider).Returns(serviceProviderMock.Object);
@@ -42,7 +46,7 @@ public class ScheduledTaskServiceTests
         var scopeFactoryMock = new Mock<IServiceScopeFactory>();
         scopeFactoryMock.Setup(x => x.CreateScope()).Returns(scope);
 
-        var scheduledService = new ScheduledTaskService(scopeFactoryMock.Object);
+        var scheduledService = new ScheduledTaskService(scopeFactoryMock.Object, Mock.Of<ILogger<ScheduledTaskService>>());
 
         var cts = new CancellationTokenSource();
         cts.CancelAfter(100);
@@ -110,7 +114,7 @@ public class ScheduledTaskServiceTests
         var scopeFactoryMock = new Mock<IServiceScopeFactory>();
         scopeFactoryMock.Setup(x => x.CreateScope()).Returns(scope);
 
-        var scheduledService = new ScheduledTaskService(scopeFactoryMock.Object);
+        var scheduledService = new ScheduledTaskService(scopeFactoryMock.Object, Mock.Of<ILogger<ScheduledTaskService>>());
 
         var cts = new CancellationTokenSource();
         cts.CancelAfter(100);
@@ -165,7 +169,7 @@ public class ScheduledTaskServiceTests
         var scopeFactoryMock = new Mock<IServiceScopeFactory>();
         scopeFactoryMock.Setup(x => x.CreateScope()).Returns(scope);
 
-        var scheduledService = new ScheduledTaskService(scopeFactoryMock.Object);
+        var scheduledService = new ScheduledTaskService(scopeFactoryMock.Object, Mock.Of<ILogger<ScheduledTaskService>>());
 
         var cts = new CancellationTokenSource();
         cts.CancelAfter(100);

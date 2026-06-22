@@ -2,9 +2,12 @@ using BankoApi.Controllers.BankoApi.Controllers.UsersController;
 using BankoApi.Controllers.BankoApi.Controllers.UsersController.Requests;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
+using BankoApi.Repository;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace BankoApi.Tests.Controllers;
 
@@ -22,7 +25,7 @@ public class UsersControllerTests
     public async Task NewUser_ValidRequest_ReturnsOkWithUserId()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx);
+        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
 
         var request = new NewUserRequest
         {
@@ -54,7 +57,7 @@ public class UsersControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = new UsersController(ctx);
+        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
         var request = new NewUserRequest
         {
             Email = "existing@example.com",
@@ -70,7 +73,7 @@ public class UsersControllerTests
     public async Task Login_ValidCredentials_ReturnsOk()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx);
+        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
 
         // Create user first via the controller
         var createRequest = new NewUserRequest
@@ -96,7 +99,7 @@ public class UsersControllerTests
     public async Task Login_WrongCredentials_ReturnsUnauthorized()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx);
+        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
 
         var createRequest = new NewUserRequest
         {
@@ -131,7 +134,7 @@ public class UsersControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = new UsersController(ctx);
+        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
         var loginRequest = new LoginRequest
         {
             Email = "inactive@example.com",
@@ -148,7 +151,7 @@ public class UsersControllerTests
     public async Task NewUser_MinimalData_ReturnsOk()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx);
+        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
 
         var request = new NewUserRequest
         {

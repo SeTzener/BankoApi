@@ -7,10 +7,12 @@ using BankoApi.Controllers.GoCardless.Requests;
 using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
+using BankoApi.Repository;
 using BankoApi.Services;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 
@@ -33,7 +35,7 @@ public class SettingsControllerTests
             var handlerMock = MockHelpers.CreateHandlerWithToken();
             goCardlessService = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         }
-        return new SettingsController(goCardlessService, ctx);
+        return new SettingsController(goCardlessService, ctx, new BankAuthorizationRepository(), Mock.Of<ILogger<SettingsController>>());
     }
 
     [Fact]
@@ -488,7 +490,7 @@ public class SettingsControllerTests
             });
 
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new SettingsController(service, ctx);
+        var controller = new SettingsController(service, ctx, new BankAuthorizationRepository(), Mock.Of<ILogger<SettingsController>>());
         var request = new UpsertEndUserAgreementRequest
         {
             InstitutionId = "TEST_BANK",
@@ -570,7 +572,7 @@ public class SettingsControllerTests
             });
 
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new SettingsController(service, ctx);
+        var controller = new SettingsController(service, ctx, new BankAuthorizationRepository(), Mock.Of<ILogger<SettingsController>>());
         var request = new UpsertEndUserAgreementRequest();
 
         var result = await controller.UpsertEndUserAgreement(request);

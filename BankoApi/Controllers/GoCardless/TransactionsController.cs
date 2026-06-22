@@ -15,12 +15,14 @@ public class TransactionsController : ControllerBase
     private readonly BankoDbContext _dbContext;
     private readonly GoCardlessService _goCardlessService;
     private readonly TransactionsRepository _repository;
+    private readonly ILogger<TransactionsController> _logger;
 
-    public TransactionsController(GoCardlessService goCardlessService, BankoDbContext dbContext)
+    public TransactionsController(GoCardlessService goCardlessService, BankoDbContext dbContext, TransactionsRepository repository, ILogger<TransactionsController> logger)
     {
         _goCardlessService = goCardlessService;
         _dbContext = dbContext;
-        _repository = new TransactionsRepository();
+        _repository = repository;
+        _logger = logger;
     }
 
     [HttpGet("{bankAccountId}")]
@@ -39,7 +41,7 @@ public class TransactionsController : ControllerBase
         }
         catch (EndUserAgreementException ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "End user agreement expired");
             _repository.SetEuaExpirationStatus(_dbContext, ex.Message);
             return Unauthorized(new ErrorResponse()
             {
@@ -48,7 +50,7 @@ public class TransactionsController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.LogError(ex, "Failed to fetch and store transactions");
             return BadRequest(new ErrorResponse() { Message = FetchAndStoreTransactionResponse.SomethingWentWrong.ToString() });
         }
     }

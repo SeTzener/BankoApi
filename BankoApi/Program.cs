@@ -1,17 +1,25 @@
 using BankoApi;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
+using BankoApi.Logging;
+using BankoApi.Repository;
 using BankoApi.Services;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Console;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuration setup (assuming IConfiguration is injected)
 builder.Configuration.AddJsonFile("appsettings.json", false, true);
+
+builder.Logging.AddConsole(o => o.FormatterName = "Custom");
+builder.Logging.AddConsoleFormatter<CustomConsoleFormatter, ConsoleFormatterOptions>();
 
 // Add services to the container.
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -20,9 +28,12 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+builder.Services.AddScoped<BankAuthorizationRepository>();
+builder.Services.AddScoped<TransactionsRepository>();
+builder.Services.AddScoped<UserRepository>();
+
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {
-    Env.Load();
     var db = Utils.SelectDatabase(builder);
     var baseUrl = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_IP")
                   ?? throw new Exception("GoogleCloud BaseUrl is missing");
