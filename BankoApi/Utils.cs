@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 namespace BankoApi;
 
 public class Utils
@@ -18,5 +20,15 @@ public class Utils
         // Use Dev database connection string (can be from configuration or a default)
         return builder.Configuration["GoogleCloud:DevDb"] ??
                throw new Exception("Missing environment variable: GoogleCloud:DevDb");
+    }
+}
+
+public static class ClaimsPrincipalExtensions
+{
+    public static Guid GetUserId(this ClaimsPrincipal user)
+    {
+        var claim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("User ID not found in token");
+        return Guid.Parse(claim);
     }
 }

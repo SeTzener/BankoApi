@@ -4,11 +4,13 @@ using BankoApi.Data;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Repository;
 using BankoApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankoApi.Controllers.GoCardless;
 
 [ApiController]
+[Authorize]
 [Route("gocardless/[controller]")]
 public class TransactionsController : ControllerBase
 {
@@ -31,7 +33,7 @@ public class TransactionsController : ControllerBase
         try
         {
             var transactions = await _goCardlessService.GetTransactionsAsync(bankAccountId);
-            Guid userId = _dbContext.Users.FirstOrDefault()?.UserId ?? throw new ArgumentNullException(nameof(bankAccountId));
+            Guid userId = User.GetUserId();
 
             if (transactions == null) return NotFound(FetchAndStoreTransactionResponse.NoTransactionsFound.ToString());
             await _repository.StoreTransactions(ctx: _dbContext, userId: userId, bankAccountId: bankAccountId, transactions);

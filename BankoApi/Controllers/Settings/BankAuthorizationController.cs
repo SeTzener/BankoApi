@@ -14,10 +14,11 @@ namespace BankoApi.Controllers.Settings
     public partial class SettingsController
     {
         [HttpGet("BankAuthorization")]
-        public async Task<IActionResult> GetBankAuthorization(Guid userId)
+        public async Task<IActionResult> GetBankAuthorization()
         {
             try
             {
+                var userId = User.GetUserId();
                 var result = _dbContext.BankAuthorizations.Where(ba => ba.UserId == userId).ToList();
                 if (result.Count == 0) throw new NoBankAuthorizationFoundException($"The user {userId} doesn't have any bank authorization process started yet.");
                 return Ok(new GetBankAuthorizationsResponse

@@ -2,12 +2,14 @@ using BankoApi.Controllers.Settings.Requests;
 using BankoApi.Controllers.Transactions.Requests;
 using BankoApi.Data;
 using BankoApi.Services.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BankoApi.Controllers.Transactions;
 
 [ApiController]
+[Authorize]
 [Route("[controller]")]
 public class TransactionsController : ControllerBase
 {
