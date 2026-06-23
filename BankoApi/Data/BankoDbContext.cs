@@ -18,6 +18,7 @@ public class BankoDbContext : DbContext
     public DbSet<BankAccount> BankAccounts { get; set; }
     public DbSet<BankAuthorization> BankAuthorizations { get; set; }
     public DbSet<Pending> Pendings { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -72,6 +73,16 @@ public class BankoDbContext : DbContext
             .HasIndex(da => da.Iban); // Add a unique constraint for IBAN
 
         modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasIndex(rt => rt.Token).IsUnique();
+
+            entity.HasOne(rt => rt.User)
+                  .WithMany()
+                  .HasForeignKey(rt => rt.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<BankAuthorization>(entity =>
         {
