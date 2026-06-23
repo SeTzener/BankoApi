@@ -5,8 +5,10 @@ using BankoApi.Controllers.Shared.DTO;
 using BankoApi.Data;
 using BankoApi.Exceptions.User;
 using BankoApi.Repository;
-using Microsoft.AspNetCore.Identity.Data;
+using BankoApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Controllers.Users;
 
@@ -16,15 +18,22 @@ public class UsersController : ControllerBase
 {
     private readonly BankoDbContext _dbContext;
     private readonly UserRepository _repository;
+    private readonly TokenService _tokenService;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(BankoDbContext dbContext, UserRepository repository, ILogger<UsersController> logger)
+    public UsersController(
+        BankoDbContext dbContext,
+        UserRepository repository,
+        TokenService tokenService,
+        ILogger<UsersController> logger)
     {
         _dbContext = dbContext;
         _repository = repository;
+        _tokenService = tokenService;
         _logger = logger;
     }
 
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> NewUser([FromBody] NewUserRequest request)
     {
@@ -43,12 +52,16 @@ public class UsersController : ControllerBase
                 context: _dbContext
             );
             await _dbContext.SaveChangesAsync();
+
+            var user = _dbContext.Users.Find(userId)!;
+            var (accessToken, refreshToken, expiresIn) = _tokenService.GenerateTokens(user);
+
             return Ok(new UserResponse
             {
                 AccountId = userId,
-                AccessToken = "ACCESS_TOKEN",
-                RefreshToken = "REFRESH_TOKEN",
-                ExpiresIn = 1234567890
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = expiresIn
             });
         }
         catch (EmailConflictException ex)
@@ -61,6 +74,7 @@ public class UsersController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
@@ -68,12 +82,15 @@ public class UsersController : ControllerBase
         {
             var userId = _repository.ValidateAccount(_dbContext, request.Email, request.Password);
 
+            var user = _dbContext.Users.Find(userId)!;
+            var (accessToken, refreshToken, expiresIn) = _tokenService.GenerateTokens(user);
+
             return Ok(new UserResponse
             {
                 AccountId = userId,
-                AccessToken = "ACCESS_TOKEN",
-                RefreshToken = "REFRESH_TOKEN",
-                ExpiresIn = 1234567890
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = expiresIn
             });
         }
         catch (Exception ex) when (ex is EmailNotFoundException || ex is PasswordNotFoundException)
@@ -92,5 +109,40 @@ public class UsersController : ControllerBase
                 Message = UserErrorMessages.InactiveAccount.ToString()
             });
         }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+    {
+        try
+        {
+            var (userId, accessToken, refreshToken, expiresIn) =
+                await _tokenService.RefreshTokenAsync(request.RefreshToken);
+
+            return Ok(new UserResponse
+            {
+                AccountId = userId,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = expiresIn
+            });
+        }
+        catch (SecurityTokenException ex)
+        {
+            _logger.LogError(ex, "Token refresh failed");
+            return Unauthorized(new ErrorResponse
+            {
+                Message = UserErrorMessages.SomethingWentWrong.ToString()
+            });
+        }
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+    {
+        await _tokenService.RevokeRefreshTokenAsync(request.RefreshToken);
+        return Ok();
     }
 }
