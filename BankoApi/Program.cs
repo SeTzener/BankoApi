@@ -8,6 +8,7 @@ using BankoApi.Services;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.OpenApi;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -64,7 +65,10 @@ builder.Services.AddHttpClient<GoCardlessService>(client =>
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BankoApi", Version = "v1" });
+});
 
 // Register the background service
 builder.Services.AddHostedService<ScheduledTaskService>();
@@ -72,7 +76,8 @@ builder.Services.AddHostedService<ScheduledTaskService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
