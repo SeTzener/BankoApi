@@ -1,9 +1,10 @@
 using BankoApi.Controllers.Users;
 using BankoApi.Controllers.Users.Requests;
+using BankoApi.Controllers.Users.Responses;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Repository;
-using Microsoft.AspNetCore.Identity.Data;
+using BankoApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,9 @@ namespace BankoApi.Tests.Controllers;
 
 public class UsersControllerTests
 {
+    private readonly Mock<TokenService> _tokenServiceMock = new(MockBehavior.Default, null!, null!);
+    private TokenService _tokenService => _tokenServiceMock.Object;
+
     private BankoDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<BankoDbContext>()
@@ -21,11 +25,20 @@ public class UsersControllerTests
         return new BankoDbContext(options);
     }
 
+    private UsersController CreateController(BankoDbContext ctx)
+    {
+        _tokenServiceMock
+            .Setup(t => t.GenerateTokens(It.IsAny<User>()))
+            .Returns(("test-access-token", "test-refresh-token", 900L));
+
+        return new UsersController(ctx, new UserRepository(), _tokenService, Mock.Of<ILogger<UsersController>>());
+    }
+
     [Fact]
     public async Task NewUser_ValidRequest_ReturnsOkWithUserId()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
+        var controller = CreateController(ctx);
 
         var request = new NewUserRequest
         {
@@ -46,10 +59,9 @@ public class UsersControllerTests
     public async Task NewUser_DuplicateEmail_ReturnsConflict()
     {
         using var ctx = CreateContext();
-        var userId = Guid.NewGuid();
         ctx.Users.Add(new User
         {
-            UserId = userId,
+            UserId = Guid.NewGuid(),
             Email = "existing@example.com",
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -57,7 +69,7 @@ public class UsersControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
+        var controller = CreateController(ctx);
         var request = new NewUserRequest
         {
             Email = "existing@example.com",
@@ -73,7 +85,7 @@ public class UsersControllerTests
     public async Task Login_ValidCredentials_ReturnsOk()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
+        var controller = CreateController(ctx);
 
         // Create user first via the controller
         var createRequest = new NewUserRequest
@@ -96,10 +108,44 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task Login_ReturnsRealTokens()
+    {
+        using var ctx = CreateContext();
+        var controller = CreateController(ctx);
+
+        var createRequest = new NewUserRequest
+        {
+            Email = "token-test@example.com",
+            Password = "password12345"
+        };
+        var createResult = await controller.NewUser(createRequest);
+        var createOk = Assert.IsType<OkObjectResult>(createResult);
+        var createResponse = Assert.IsType<UserResponse>(createOk.Value);
+
+        Assert.Equal("test-access-token", createResponse.AccessToken);
+        Assert.Equal("test-refresh-token", createResponse.RefreshToken);
+        Assert.Equal(900L, createResponse.ExpiresIn);
+        Assert.NotEqual(Guid.Empty, createResponse.AccountId);
+
+        var loginResult = await controller.Login(new LoginRequest
+        {
+            Email = "token-test@example.com",
+            Password = "password12345"
+        });
+        var loginOk = Assert.IsType<OkObjectResult>(loginResult);
+        var loginResponse = Assert.IsType<UserResponse>(loginOk.Value);
+
+        Assert.Equal("test-access-token", loginResponse.AccessToken);
+        Assert.Equal("test-refresh-token", loginResponse.RefreshToken);
+        Assert.Equal(900L, loginResponse.ExpiresIn);
+        Assert.NotEqual(Guid.Empty, loginResponse.AccountId);
+    }
+
+    [Fact]
     public async Task Login_WrongCredentials_ReturnsUnauthorized()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
+        var controller = CreateController(ctx);
 
         var createRequest = new NewUserRequest
         {
@@ -134,7 +180,7 @@ public class UsersControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
+        var controller = CreateController(ctx);
         var loginRequest = new LoginRequest
         {
             Email = "inactive@example.com",
@@ -151,7 +197,7 @@ public class UsersControllerTests
     public async Task NewUser_MinimalData_ReturnsOk()
     {
         using var ctx = CreateContext();
-        var controller = new UsersController(ctx, new UserRepository(), Mock.Of<ILogger<UsersController>>());
+        var controller = CreateController(ctx);
 
         var request = new NewUserRequest
         {
