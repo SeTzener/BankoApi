@@ -1,3 +1,4 @@
+using System.Text;
 using BankoApi;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
@@ -6,8 +7,10 @@ using BankoApi.Logging;
 using BankoApi.Repository;
 using BankoApi.Services;
 using DotNetEnv;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -33,6 +36,7 @@ builder.Services.AddControllers(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<BankAuthorizationRepository>();
 builder.Services.AddScoped<TransactionsRepository>();
 builder.Services.AddScoped<UserRepository>();
@@ -47,6 +51,30 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     var connectionString =
         $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
     options.UseLazyLoadingProxies().UseSqlServer(connectionString);
+});
+
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+                ?? throw new Exception("JWT Secret is missing");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BankoApi";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BankoMobile";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ClockSkew = TimeSpan.Zero
+    };
 });
 
 var baseUrl = builder.Configuration["GoCardlessAPI:BaseUrl"] ?? throw new Exception("GoCadless Base URL is missing");
@@ -81,6 +109,7 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
