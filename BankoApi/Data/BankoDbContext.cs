@@ -19,6 +19,8 @@ public class BankoDbContext : DbContext
     public DbSet<BankAuthorization> BankAuthorizations { get; set; }
     public DbSet<Pending> Pendings { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<PrivacyPolicyVersion> PrivacyPolicyVersions { get; set; }
+    public DbSet<ConsentLog> ConsentLogs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -82,6 +84,32 @@ public class BankoDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(rt => rt.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PrivacyPolicyVersion>(entity =>
+        {
+            entity.HasIndex(p => p.Version).IsUnique();
+        });
+
+        modelBuilder.Entity<ConsentLog>(entity =>
+        {
+            entity.HasOne(cl => cl.User)
+                  .WithMany()
+                  .HasForeignKey(cl => cl.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(cl => cl.PrivacyPolicyVersion)
+                  .WithMany()
+                  .HasForeignKey(cl => cl.PrivacyPolicyVersionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasOne(u => u.ConsentVersion)
+                  .WithMany()
+                  .HasForeignKey(u => u.ConsentVersionId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<BankAuthorization>(entity =>

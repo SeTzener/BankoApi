@@ -31,4 +31,9 @@ public class User
     [Required] public bool ConsentGiven { get; set; } = false;
 
     public DateTime? ConsentUpdatedAt { get; set; }
+
+    public Guid? ConsentVersionId { get; set; }
+
+    [ForeignKey("ConsentVersionId")]
+    public virtual PrivacyPolicyVersion? ConsentVersion { get; set; }
 }
