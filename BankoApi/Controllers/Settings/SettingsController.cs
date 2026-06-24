@@ -2,11 +2,13 @@ using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Repository;
 using BankoApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankoApi.Controllers.Settings;
 
 [ApiController]
+[Authorize]
 [Route("[controller]")]
 public partial class SettingsController : ControllerBase
 {

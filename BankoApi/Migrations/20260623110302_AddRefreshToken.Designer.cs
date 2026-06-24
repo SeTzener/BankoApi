@@ -4,6 +4,7 @@ using BankoApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankoApi.Migrations
 {
     [DbContext(typeof(BankoDbContext))]
-    partial class BankoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260623110302_AddRefreshToken")]
+    partial class AddRefreshToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -157,33 +160,6 @@ namespace BankoApi.Migrations
                     b.ToTable("BankAuthorizations");
                 });
 
-            modelBuilder.Entity("BankoApi.Data.Dao.ConsentLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("Accepted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("PrivacyPolicyVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("RecordedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PrivacyPolicyVersionId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ConsentLogs");
-                });
-
             modelBuilder.Entity("BankoApi.Data.Dao.CreditorAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -281,34 +257,6 @@ namespace BankoApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Pendings");
-                });
-
-            modelBuilder.Entity("BankoApi.Data.Dao.PrivacyPolicyVersion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("PublishedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Version")
-                        .IsUnique();
-
-                    b.ToTable("PrivacyPolicyVersions");
                 });
 
             modelBuilder.Entity("BankoApi.Data.Dao.RefreshToken", b =>
@@ -443,9 +391,6 @@ namespace BankoApi.Migrations
                     b.Property<DateTime?>("ConsentUpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("ConsentVersionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -480,8 +425,6 @@ namespace BankoApi.Migrations
 
                     b.HasKey("UserId");
 
-                    b.HasIndex("ConsentVersionId");
-
                     b.HasIndex("Email")
                         .IsUnique();
 
@@ -506,25 +449,6 @@ namespace BankoApi.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("BankoApi.Data.Dao.ConsentLog", b =>
-                {
-                    b.HasOne("BankoApi.Data.Dao.PrivacyPolicyVersion", "PrivacyPolicyVersion")
-                        .WithMany()
-                        .HasForeignKey("PrivacyPolicyVersionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BankoApi.Data.Dao.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PrivacyPolicyVersion");
 
                     b.Navigation("User");
                 });
@@ -562,16 +486,6 @@ namespace BankoApi.Migrations
                     b.Navigation("DebtorAccount");
 
                     b.Navigation("ExpenseTag");
-                });
-
-            modelBuilder.Entity("BankoApi.Data.Dao.User", b =>
-                {
-                    b.HasOne("BankoApi.Data.Dao.PrivacyPolicyVersion", "ConsentVersion")
-                        .WithMany()
-                        .HasForeignKey("ConsentVersionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ConsentVersion");
                 });
 
             modelBuilder.Entity("BankoApi.Data.Dao.BankAuthorization", b =>

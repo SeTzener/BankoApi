@@ -61,7 +61,7 @@ public class TransactionsRepository
             
             if (!storedTransactions.Contains(newTransaction.InternalTransactionId) && !storedTransactions.Contains(newTransaction.TransactionId))
             {
-                if (newTransaction.TransactionId.IsNullOrEmpty())
+                if (string.IsNullOrEmpty(newTransaction.TransactionId))
                 {
                     newTransaction.TransactionId = Guid.NewGuid().ToString();
                 }

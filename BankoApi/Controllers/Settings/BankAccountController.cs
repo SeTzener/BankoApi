@@ -14,7 +14,7 @@ namespace BankoApi.Controllers.Settings
         [HttpGet("BankAccount")]
         public async Task<IActionResult> GetBankAccount([FromQuery] List<String> bankAccountId)
         {
-            if (bankAccountId.IsNullOrEmpty())
+            if (bankAccountId.Count == 0)
                 return BadRequest(new ErrorResponse() { Message = "Bank account IDs are required" });
 
             try

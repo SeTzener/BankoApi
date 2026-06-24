@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 using BankoApi.Controllers.Settings.Requests;
 using BankoApi.Controllers.Settings.Responses;
@@ -10,6 +11,7 @@ using BankoApi.Data.Dao;
 using BankoApi.Repository;
 using BankoApi.Services;
 using BankoApi.Services.Model;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -28,14 +30,25 @@ public class SettingsControllerTests
         return new BankoDbContext(options);
     }
 
-    private SettingsController CreateController(BankoDbContext ctx, GoCardlessService? goCardlessService = null)
+    private SettingsController CreateController(BankoDbContext ctx, GoCardlessService? goCardlessService = null, Guid? userId = null)
     {
         if (goCardlessService == null)
         {
             var handlerMock = MockHelpers.CreateHandlerWithToken();
             goCardlessService = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         }
-        return new SettingsController(goCardlessService, ctx, new BankAuthorizationRepository(), Mock.Of<ILogger<SettingsController>>());
+        var controller = new SettingsController(goCardlessService, ctx, new BankAuthorizationRepository(), Mock.Of<ILogger<SettingsController>>());
+        if (userId.HasValue)
+        {
+            var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()) };
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var principal = new ClaimsPrincipal(identity);
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = principal }
+            };
+        }
+        return controller;
     }
 
     [Fact]
@@ -186,8 +199,8 @@ public class SettingsControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
-        var result = await controller.GetBankAuthorization(userId);
+        var controller = CreateController(ctx, userId: userId);
+        var result = await controller.GetBankAuthorization();
 
         var okResult = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<GetBankAuthorizationsResponse>(okResult.Value);
@@ -198,9 +211,9 @@ public class SettingsControllerTests
     public async Task GetBankAuthorization_NoAuthorizations_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: Guid.NewGuid());
 
-        var result = await controller.GetBankAuthorization(Guid.NewGuid());
+        var result = await controller.GetBankAuthorization();
 
         Assert.IsType<NotFoundObjectResult>(result);
     }

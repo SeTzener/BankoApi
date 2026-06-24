@@ -99,7 +99,7 @@ public static class TransactionsExtensions
         return transactions.BankTransactions.Booked.ConvertAll(bookedTransaction =>
             new TransactionDao
             {
-                Id = bookedTransaction.TransactionId,
+                Id = bookedTransaction.TransactionId!,
                 UserId = userId,
                 BankAccountId = bankAccountId,
                 BookingDate = DateTime.Parse(bookedTransaction.BookingDate),

@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http;
+using System.Security.Claims;
 using System.Text.Json;
 using BankoApi.Controllers.GoCardless;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BankoApi.Repository;
@@ -23,55 +25,31 @@ public class GoCardlessTransactionsControllerTests
         return new BankoDbContext(options);
     }
 
-    [Fact]
-    public async Task FetchAndStoreTransactions_NoUser_ThrowsArgumentNullException()
+    private TransactionsController CreateController(BankoDbContext ctx, GoCardlessService service, Guid userId)
     {
-        using var ctx = CreateContext();
-        var transactionsResponse = new
-        {
-            transactions = new
-            {
-                booked = Array.Empty<object>(),
-                pending = Array.Empty<object>()
-            }
-        };
-
-        var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(JsonSerializer.Serialize(transactionsResponse,
-                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
-            });
-        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
-        var bankAccountId = Guid.NewGuid();
-
-        await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            controller.FetchAndStoreTransactions(bankAccountId));
+        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+        return controller;
     }
 
     [Fact]
     public async Task FetchAndStoreTransactions_EmptyResponse_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        ctx.Users.Add(new User
-        {
-            UserId = Guid.NewGuid(),
-            Email = "test@example.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        });
-        ctx.SaveChanges();
-
-        // Return empty body which will deserialize as null Transactions
+        var userId = Guid.NewGuid();
         var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("null", System.Text.Encoding.UTF8, "application/json")
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
+        var controller = CreateController(ctx, service, userId);
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
@@ -111,7 +89,7 @@ public class GoCardlessTransactionsControllerTests
                 Content = new StringContent($"EUA was valid for 90 days and it expired {agreementId}")
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
+        var controller = CreateController(ctx, service, userId);
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
@@ -123,21 +101,13 @@ public class GoCardlessTransactionsControllerTests
     public async Task FetchAndStoreTransactions_GeneralException_ThrowsHttpRequestException()
     {
         using var ctx = CreateContext();
-        ctx.Users.Add(new User
-        {
-            UserId = Guid.NewGuid(),
-            Email = "test@example.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        });
-        ctx.SaveChanges();
+        var userId = Guid.NewGuid();
 
         // Return 500 to cause HttpRequestException
         var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
             new HttpResponseMessage(HttpStatusCode.InternalServerError));
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
+        var controller = CreateController(ctx, service, userId);
         var bankAccountId = Guid.NewGuid();
 
         await Assert.ThrowsAsync<HttpRequestException>(() =>
@@ -148,15 +118,7 @@ public class GoCardlessTransactionsControllerTests
     public async Task FetchAndStoreTransactions_Success_ReturnsOk()
     {
         using var ctx = CreateContext();
-        ctx.Users.Add(new User
-        {
-            UserId = Guid.NewGuid(),
-            Email = "test@example.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        });
-        ctx.SaveChanges();
+        var userId = Guid.NewGuid();
 
         var transactionsResponse = new
         {
@@ -174,7 +136,7 @@ public class GoCardlessTransactionsControllerTests
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
-        var controller = new TransactionsController(service, ctx, new TransactionsRepository(), Mock.Of<ILogger<TransactionsController>>());
+        var controller = CreateController(ctx, service, userId);
         var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);

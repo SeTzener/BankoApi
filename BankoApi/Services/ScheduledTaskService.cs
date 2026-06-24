@@ -57,7 +57,7 @@ public class ScheduledTaskService : BackgroundService
                 .Select(y => y.BankAccountId)
                 .ToListAsync();
 
-            if (!bankAccountIds.IsNullOrEmpty())
+            if (bankAccountIds.Count != 0)
             {
                 foreach (var gcAccountId in bankAccountIds)
                 {
