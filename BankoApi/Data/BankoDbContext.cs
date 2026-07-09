@@ -21,6 +21,7 @@ public class BankoDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<PrivacyPolicyVersion> PrivacyPolicyVersions { get; set; }
     public DbSet<ConsentLog> ConsentLogs { get; set; }
+    public DbSet<Institution> Institutions { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -132,6 +133,12 @@ public class BankoDbContext : DbContext
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
 
+            // Define the relationship with Institution
+            entity.HasOne(e => e.Institution)
+                  .WithMany()
+                  .HasForeignKey(e => e.InstitutionId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
             entity.Property(e => e.Status)
             .HasConversion<string>()  // This converts enum to string
             .HasMaxLength(50);
@@ -153,6 +160,21 @@ public class BankoDbContext : DbContext
                   .WithMany(c => c.BankAccounts)
                   .HasForeignKey(e => e.BankAuthorizationId)
                   .OnDelete(DeleteBehavior.Cascade); // ON DELETE CASCADE
+        });
+
+        modelBuilder.Entity<Institution>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasMaxLength(50);
+            entity.Property(e => e.Name).HasMaxLength(255);
+        });
+
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasOne(e => e.BankAccount)
+                  .WithMany()
+                  .HasForeignKey(e => e.BankAccountId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -1,6 +1,7 @@
 using BankoApi.Controllers.Settings.Requests;
 using BankoApi.Controllers.Transactions.Requests;
 using BankoApi.Data;
+using BankoApi.Data.Dao;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -60,12 +61,41 @@ public class TransactionsController : ControllerBase
             .Include(t => t.DebtorAccount)
             .Include(t => t.CreditorAccount)
             .Include(t => t.ExpenseTag)
+            .Include(t => t.BankAccount)
+                .ThenInclude(ba => ba.BankAuthorization)
+                    .ThenInclude(ba => ba.Institution)
             .OrderByDescending(t => t.BookingDate)
             .ToListAsync();
 
+        var response = transactions.ConvertAll(t => new TransactionResponse
+        {
+            Id = t.Id,
+            UserId = t.UserId,
+            BankAccountId = t.BankAccountId,
+            BookingDate = t.BookingDate,
+            ValueDate = t.ValueDate,
+            Amount = t.Amount,
+            Currency = t.Currency,
+            DebtorAccount = t.DebtorAccount,
+            RemittanceInformationUnstructured = t.RemittanceInformationUnstructured,
+            RemittanceInformationUnstructuredArray = t.RemittanceInformationUnstructuredArray,
+            BankTransactionCode = t.BankTransactionCode,
+            InternalTransactionId = t.InternalTransactionId,
+            CreditorName = t.CreditorName,
+            CreditorAccount = t.CreditorAccount,
+            DebtorName = t.DebtorName,
+            RemittanceInformationStructuredArray = t.RemittanceInformationStructuredArray,
+            ExpenseTagId = t.ExpenseTagId,
+            Note = t.Note,
+            isDeleted = t.isDeleted,
+            ExpenseTag = t.ExpenseTag,
+            BankName = t.BankAccount?.BankAuthorization?.Institution?.Name,
+            BankLogoUrl = t.BankAccount?.BankAuthorization?.Institution?.LogoUrl
+        });
+
         return Ok(new PaginatedTransactionResponse
         {
-            Transactions = transactions,
+            Transactions = response,
             TotalCount = totalCount,
             PageNumber = pageNumber,
             PageSize = pageSize

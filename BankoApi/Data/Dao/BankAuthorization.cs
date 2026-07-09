@@ -38,6 +38,7 @@ public class BankAuthorization
     public virtual User User { get; set; }
     [ForeignKey("BankAccountId")]
     public virtual ICollection<BankAccount>? BankAccounts { get; set; }
+    public virtual Institution? Institution { get; set; }
 }
 
 public enum BankAuthorizationStaus

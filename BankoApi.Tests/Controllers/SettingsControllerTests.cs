@@ -502,6 +502,29 @@ public class SettingsControllerTests
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             });
 
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r =>
+                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("institutions/TEST_BANK/")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(
+                    new
+                    {
+                        id = "TEST_BANK",
+                        name = "Test Bank",
+                        bic = "TESTBIC22",
+                        transaction_total_days = "180",
+                        countries = new[] { "GB" },
+                        logo = "https://example.com/logo.png",
+                        max_access_valid_for_days = "90"
+                    },
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            });
+
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = new SettingsController(service, ctx, new BankAuthorizationRepository(), Mock.Of<ILogger<SettingsController>>());
         var request = new UpsertEndUserAgreementRequest
@@ -580,6 +603,29 @@ public class SettingsControllerTests
                         ssn = "",
                         account_selection = false,
                         redirect_immediate = false
+                    },
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            });
+
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r =>
+                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("institutions/TEST_BANK/")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(
+                    new
+                    {
+                        id = "TEST_BANK",
+                        name = "Test Bank",
+                        bic = "TESTBIC22",
+                        transaction_total_days = "180",
+                        countries = new[] { "GB" },
+                        logo = "https://example.com/logo.png",
+                        max_access_valid_for_days = "90"
                     },
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             });
