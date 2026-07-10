@@ -78,6 +78,31 @@ public class GoCardlessService
         return response.Content.ReadFromJsonAsync<EndUserAgreement>().Result;
     }
 
+    public async Task<GoCardlessInstitution?> GetInstitutionAsync(string institutionId)
+    {
+        var token = await _tokenService.GetAccessTokenAsync();
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.GetAsync($"institutions/{institutionId}/");
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<GoCardlessInstitution>();
+    }
+
+    public async Task<List<GoCardlessInstitution>> GetInstitutionsAsync(string? countryCode = null)
+    {
+        var token = await _tokenService.GetAccessTokenAsync();
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var url = countryCode != null ? $"institutions/?country={countryCode}" : "institutions/";
+        var response = await _httpClient.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<List<GoCardlessInstitution>>() ?? new List<GoCardlessInstitution>();
+    }
+
     public async Task<Model.Requisition> CreateRequisition(string institutionId, string agreementId)
     {
 

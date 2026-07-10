@@ -1,6 +1,7 @@
 using BankoApi.Controllers.Settings.Requests;
 using BankoApi.Controllers.Transactions.Requests;
 using BankoApi.Data;
+using BankoApi.Data.Dao;
 using BankoApi.Services.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +35,9 @@ public class TransactionsController : ControllerBase
             return BadRequest("The fromDate cannot be greater than toDate.");
 
         toDate ??= DateTime.UtcNow;
-        fromDate ??= _dbContext.Transactions.Min(t => t.BookingDate);
+        fromDate ??= await _dbContext.Transactions
+            .DefaultIfEmpty()
+            .MinAsync(t => (DateTime?)t.BookingDate) ?? DateTime.UtcNow.AddYears(-1);
 
         var skip = (pageNumber - 1) * pageSize;
 
@@ -63,9 +66,48 @@ public class TransactionsController : ControllerBase
             .OrderByDescending(t => t.BookingDate)
             .ToListAsync();
 
+        // Manual join: look up BankAccount by matching BankAccountId (GC UUID string)
+        // instead of relying on a DB FK that maps Transaction.BankAccountId to BankAccounts.Id
+        var gcAccountIds = transactions
+            .Select(t => t.BankAccountId.ToString())
+            .Distinct()
+            .ToList();
+        var bankAccounts = await _dbContext.BankAccounts
+            .Where(ba => gcAccountIds.Contains(ba.BankAccountId))
+            .Include(ba => ba.BankAuthorization)
+                .ThenInclude(ba => ba.Institution)
+            .ToListAsync();
+        var bankAccountLookup = bankAccounts.ToDictionary(ba => Guid.Parse(ba.BankAccountId));
+
+        var response = transactions.ConvertAll(t => new TransactionResponse
+        {
+            Id = t.Id,
+            UserId = t.UserId,
+            BankAccountId = t.BankAccountId,
+            BookingDate = t.BookingDate,
+            ValueDate = t.ValueDate,
+            Amount = t.Amount,
+            Currency = t.Currency,
+            DebtorAccount = t.DebtorAccount,
+            RemittanceInformationUnstructured = t.RemittanceInformationUnstructured,
+            RemittanceInformationUnstructuredArray = t.RemittanceInformationUnstructuredArray,
+            BankTransactionCode = t.BankTransactionCode,
+            InternalTransactionId = t.InternalTransactionId,
+            CreditorName = t.CreditorName,
+            CreditorAccount = t.CreditorAccount,
+            DebtorName = t.DebtorName,
+            RemittanceInformationStructuredArray = t.RemittanceInformationStructuredArray,
+            ExpenseTagId = t.ExpenseTagId,
+            Note = t.Note,
+            isDeleted = t.isDeleted,
+            ExpenseTag = t.ExpenseTag,
+            BankName = bankAccountLookup.GetValueOrDefault(t.BankAccountId)?.BankAuthorization?.Institution?.Name,
+            BankLogoUrl = bankAccountLookup.GetValueOrDefault(t.BankAccountId)?.BankAuthorization?.Institution?.LogoUrl
+        });
+
         return Ok(new PaginatedTransactionResponse
         {
-            Transactions = transactions,
+            Transactions = response,
             TotalCount = totalCount,
             PageNumber = pageNumber,
             PageSize = pageSize

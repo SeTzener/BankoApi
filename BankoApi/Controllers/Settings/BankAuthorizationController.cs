@@ -6,6 +6,7 @@ using BankoApi.Controllers.GoCardless.Responses;
 using BankoApi.Data.Dao;
 using BankoApi.Exceptions.Settings;
 using BankoApi.Services.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -107,19 +108,46 @@ namespace BankoApi.Controllers.Settings
             var eua = await _goCardlessService.GetEndUserAgreement();
             EndUserAgreement? validEua = _repository.HasValidNonAcceptedAgreement(eua);
 
+            string institutionId;
             if (validEua == null)
             {
                 if (request.InstitutionId != null && request.DaysOfAccess != null)
                 {
-                    validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: request.InstitutionId, daysOfAccess: request.DaysOfAccess.Value);
+                    institutionId = request.InstitutionId;
+                    validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: institutionId, daysOfAccess: request.DaysOfAccess.Value);
                 }
                 else
                 {
-                    String institutionId = "BIEN_SPAREBANK_BIENNOK1"; // TODO: prendere l'insitutionId dal DB
-                    int daysOfAccess = eua.Results.Where(e => e.InstitutionId == institutionId).First().AccessValidForDays;
-
-                    validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: institutionId, daysOfAccess: daysOfAccess);
+                    return BadRequest("InstitutionId is required to create a new agreement");
                 }
+            }
+            else
+            {
+                institutionId = validEua.InstitutionId;
+            }
+
+            // Fetch and store institution data
+            var gcInstitution = await _goCardlessService.GetInstitutionAsync(institutionId);
+            if (gcInstitution != null)
+            {
+                var existing = await _dbContext.Institutions.FindAsync(gcInstitution.Id);
+                if (existing == null)
+                {
+                    _dbContext.Institutions.Add(new Institution
+                    {
+                        Id = gcInstitution.Id,
+                        Name = gcInstitution.Name,
+                        LogoUrl = gcInstitution.Logo
+                    });
+                }
+                else
+                {
+                    existing.Name = gcInstitution.Name;
+                    existing.LogoUrl = gcInstitution.Logo;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _dbContext.SaveChangesAsync();
             }
 
             var requisition = await _goCardlessService.CreateRequisition(
@@ -137,6 +165,39 @@ namespace BankoApi.Controllers.Settings
                 RequisitionId = requisition.Id,
                 ReferenceId = requisition.Reference
             });
+        }
+
+        [AllowAnonymous]
+        [HttpGet("institutions")]
+        public async Task<IActionResult> GetInstitutions([FromQuery] string? country = null)
+        {
+            var institutions = await _goCardlessService.GetInstitutionsAsync(country);
+            return Ok(institutions);
+        }
+
+        [HttpPost("institutions/sync-logos")]
+        public async Task<IActionResult> SyncMissingLogos()
+        {
+            var missing = await _dbContext.Institutions
+                .Where(i => i.LogoUrl == null || i.LogoUrl == "")
+                .ToListAsync();
+
+            var updated = 0;
+            foreach (var institution in missing)
+            {
+                var gcInstitution = await _goCardlessService.GetInstitutionAsync(institution.Id);
+                if (gcInstitution?.Logo != null)
+                {
+                    institution.LogoUrl = gcInstitution.Logo;
+                    institution.UpdatedAt = DateTime.UtcNow;
+                    updated++;
+                }
+            }
+
+            if (updated > 0)
+                await _dbContext.SaveChangesAsync();
+
+            return Ok(new { total = missing.Count, updated });
         }
     }
 }
