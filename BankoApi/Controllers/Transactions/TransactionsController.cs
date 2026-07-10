@@ -35,7 +35,9 @@ public class TransactionsController : ControllerBase
             return BadRequest("The fromDate cannot be greater than toDate.");
 
         toDate ??= DateTime.UtcNow;
-        fromDate ??= _dbContext.Transactions.Min(t => t.BookingDate);
+        fromDate ??= await _dbContext.Transactions
+            .DefaultIfEmpty()
+            .MinAsync(t => (DateTime?)t.BookingDate) ?? DateTime.UtcNow.AddYears(-1);
 
         var skip = (pageNumber - 1) * pageSize;
 
@@ -61,11 +63,21 @@ public class TransactionsController : ControllerBase
             .Include(t => t.DebtorAccount)
             .Include(t => t.CreditorAccount)
             .Include(t => t.ExpenseTag)
-            .Include(t => t.BankAccount)
-                .ThenInclude(ba => ba.BankAuthorization)
-                    .ThenInclude(ba => ba.Institution)
             .OrderByDescending(t => t.BookingDate)
             .ToListAsync();
+
+        // Manual join: look up BankAccount by matching BankAccountId (GC UUID string)
+        // instead of relying on a DB FK that maps Transaction.BankAccountId to BankAccounts.Id
+        var gcAccountIds = transactions
+            .Select(t => t.BankAccountId.ToString())
+            .Distinct()
+            .ToList();
+        var bankAccounts = await _dbContext.BankAccounts
+            .Where(ba => gcAccountIds.Contains(ba.BankAccountId))
+            .Include(ba => ba.BankAuthorization)
+                .ThenInclude(ba => ba.Institution)
+            .ToListAsync();
+        var bankAccountLookup = bankAccounts.ToDictionary(ba => Guid.Parse(ba.BankAccountId));
 
         var response = transactions.ConvertAll(t => new TransactionResponse
         {
@@ -89,8 +101,8 @@ public class TransactionsController : ControllerBase
             Note = t.Note,
             isDeleted = t.isDeleted,
             ExpenseTag = t.ExpenseTag,
-            BankName = t.BankAccount?.BankAuthorization?.Institution?.Name,
-            BankLogoUrl = t.BankAccount?.BankAuthorization?.Institution?.LogoUrl
+            BankName = bankAccountLookup.GetValueOrDefault(t.BankAccountId)?.BankAuthorization?.Institution?.Name,
+            BankLogoUrl = bankAccountLookup.GetValueOrDefault(t.BankAccountId)?.BankAuthorization?.Institution?.LogoUrl
         });
 
         return Ok(new PaginatedTransactionResponse

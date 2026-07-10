@@ -169,12 +169,6 @@ public class BankoDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(255);
         });
 
-        modelBuilder.Entity<Transaction>(entity =>
-        {
-            entity.HasOne(e => e.BankAccount)
-                  .WithMany()
-                  .HasForeignKey(e => e.BankAccountId)
-                  .OnDelete(DeleteBehavior.Restrict);
-        });
+
     }
 }

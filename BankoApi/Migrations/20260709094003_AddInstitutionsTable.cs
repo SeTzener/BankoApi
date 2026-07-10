@@ -23,10 +23,6 @@ namespace BankoApi.Migrations
                     DROP INDEX [IX_Transactions_BankAccountId] ON [Transactions];
                 IF OBJECT_ID('Institutions') IS NOT NULL
                     DROP TABLE [Institutions];
-                -- Remove orphaned transactions before creating FK
-                DELETE FROM [Transactions]
-                WHERE [BankAccountId] IS NOT NULL
-                  AND NOT EXISTS (SELECT 1 FROM [BankAccounts] WHERE [Id] = [Transactions].[BankAccountId]);
             """);
 
             migrationBuilder.CreateTable(
@@ -43,11 +39,6 @@ namespace BankoApi.Migrations
                 {
                     table.PrimaryKey("PK_Institutions", x => x.Id);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Transactions_BankAccountId",
-                table: "Transactions",
-                column: "BankAccountId");
 
             // Seed data from existing BankAuthorizations
             migrationBuilder.Sql(@"
@@ -74,33 +65,27 @@ namespace BankoApi.Migrations
                 principalTable: "Institutions",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.SetNull);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Transactions_BankAccounts_BankAccountId",
-                table: "Transactions",
-                column: "BankAccountId",
-                principalTable: "BankAccounts",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Cleanup objects that may exist from a previous version of this migration
+            // (the FK and index on Transactions.BankAccountId were added originally
+            //  but later removed — still need to drop them on rollback if present)
+            migrationBuilder.Sql("""
+                IF OBJECT_ID('FK_Transactions_BankAccounts_BankAccountId') IS NOT NULL
+                    ALTER TABLE [Transactions] DROP CONSTRAINT [FK_Transactions_BankAccounts_BankAccountId];
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_BankAccountId' AND object_id = OBJECT_ID('Transactions'))
+                    DROP INDEX [IX_Transactions_BankAccountId] ON [Transactions];
+            """);
+
             migrationBuilder.DropForeignKey(
                 name: "FK_BankAuthorizations_Institutions_InstitutionId",
                 table: "BankAuthorizations");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_Transactions_BankAccounts_BankAccountId",
-                table: "Transactions");
-
             migrationBuilder.DropTable(
                 name: "Institutions");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Transactions_BankAccountId",
-                table: "Transactions");
 
             migrationBuilder.DropIndex(
                 name: "IX_BankAuthorizations_InstitutionId",

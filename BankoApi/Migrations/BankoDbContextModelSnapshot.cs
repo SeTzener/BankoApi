@@ -445,8 +445,6 @@ namespace BankoApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BankAccountId");
-
                     b.HasIndex("CreditorAccountId");
 
                     b.HasIndex("DebtorAccountId");
@@ -578,12 +576,6 @@ namespace BankoApi.Migrations
 
             modelBuilder.Entity("BankoApi.Data.Dao.Transaction", b =>
                 {
-                    b.HasOne("BankoApi.Data.Dao.BankAccount", "BankAccount")
-                        .WithMany()
-                        .HasForeignKey("BankAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("BankoApi.Data.Dao.CreditorAccount", "CreditorAccount")
                         .WithMany()
                         .HasForeignKey("CreditorAccountId")
@@ -598,8 +590,6 @@ namespace BankoApi.Migrations
                         .WithMany()
                         .HasForeignKey("ExpenseTagId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("BankAccount");
 
                     b.Navigation("CreditorAccount");
 

@@ -27,7 +27,6 @@ public class Transaction
     public string? Note { get; set; }
     public bool isDeleted { get; set; }
     public virtual ExpenseTag? ExpenseTag { get; set; }
-    public virtual BankAccount? BankAccount { get; set; }
 }
 
 public class CreditorAccount
