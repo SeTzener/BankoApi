@@ -5,7 +5,7 @@ namespace BankoApi.Data.Dao;
 public class Institution
 {
     [Key]
-    [MaxLength(50)]
+    [MaxLength(100)]
     public required string Id { get; set; }
 
     [MaxLength(255)]

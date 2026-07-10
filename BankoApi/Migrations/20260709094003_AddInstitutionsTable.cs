@@ -11,11 +11,29 @@ namespace BankoApi.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Cleanup partial state from previous failed attempt & orphaned data
+            migrationBuilder.Sql("""
+                IF OBJECT_ID('FK_BankAuthorizations_Institutions_InstitutionId') IS NOT NULL
+                    ALTER TABLE [BankAuthorizations] DROP CONSTRAINT [FK_BankAuthorizations_Institutions_InstitutionId];
+                IF OBJECT_ID('FK_Transactions_BankAccounts_BankAccountId') IS NOT NULL
+                    ALTER TABLE [Transactions] DROP CONSTRAINT [FK_Transactions_BankAccounts_BankAccountId];
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankAuthorizations_InstitutionId' AND object_id = OBJECT_ID('BankAuthorizations'))
+                    DROP INDEX [IX_BankAuthorizations_InstitutionId] ON [BankAuthorizations];
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_BankAccountId' AND object_id = OBJECT_ID('Transactions'))
+                    DROP INDEX [IX_Transactions_BankAccountId] ON [Transactions];
+                IF OBJECT_ID('Institutions') IS NOT NULL
+                    DROP TABLE [Institutions];
+                -- Remove orphaned transactions before creating FK
+                DELETE FROM [Transactions]
+                WHERE [BankAccountId] IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM [BankAccounts] WHERE [Id] = [Transactions].[BankAccountId]);
+            """);
+
             migrationBuilder.CreateTable(
                 name: "Institutions",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Id = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Name = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     LogoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),

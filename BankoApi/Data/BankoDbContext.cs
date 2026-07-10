@@ -165,7 +165,7 @@ public class BankoDbContext : DbContext
         modelBuilder.Entity<Institution>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasMaxLength(50);
+            entity.Property(e => e.Id).HasMaxLength(100);
             entity.Property(e => e.Name).HasMaxLength(255);
         });
 
