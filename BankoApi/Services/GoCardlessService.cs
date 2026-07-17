@@ -114,6 +114,7 @@ public class GoCardlessService
         var formData = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             { "redirect", "Banko://bank-auth-callback" },
+            { "redirect_immediate", "true" },
             { "institution_id", institutionId },
             { "agreement", agreementId },
             { "reference", Guid.NewGuid().ToString() },

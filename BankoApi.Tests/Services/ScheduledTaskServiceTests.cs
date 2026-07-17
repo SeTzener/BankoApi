@@ -178,4 +178,62 @@ public class ScheduledTaskServiceTests
         await Task.Delay(200);
         await scheduledService.StopAsync(cts.Token);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_StaleProcessingAuthorizations_AreDeleted()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        ctx.Users.Add(new User
+        {
+            UserId = userId,
+            Email = "test@example.com",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        var staleAuthId = Guid.NewGuid();
+        var recentAuthId = Guid.NewGuid();
+        var linkedAuthId = Guid.NewGuid();
+
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = staleAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Processing,
+            CreatedAt = DateTime.UtcNow.AddHours(-25),
+            UpdatedAt = DateTime.UtcNow.AddHours(-25)
+        });
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = recentAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Processing,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = linkedAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow.AddHours(-25),
+            UpdatedAt = DateTime.UtcNow.AddHours(-25)
+        });
+        ctx.SaveChanges();
+
+        var threshold = DateTime.UtcNow.AddHours(-24);
+        var staleAuthorizations = await ctx.BankAuthorizations
+            .Where(ba => ba.Status == BankAuthorizationStaus.Processing && ba.CreatedAt < threshold)
+            .ToListAsync();
+
+        ctx.BankAuthorizations.RemoveRange(staleAuthorizations);
+        await ctx.SaveChangesAsync();
+
+        var remaining = ctx.BankAuthorizations.ToList();
+        Assert.Single(remaining, ba => ba.Id == recentAuthId);
+        Assert.Single(remaining, ba => ba.Id == linkedAuthId);
+        Assert.DoesNotContain(remaining, ba => ba.Id == staleAuthId);
+    }
 }

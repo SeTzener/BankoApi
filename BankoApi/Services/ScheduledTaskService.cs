@@ -1,4 +1,5 @@
 using BankoApi.Data;
+using BankoApi.Data.Dao;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Repository;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,15 @@ public class ScheduledTaskService : BackgroundService
             {
                 _logger.LogError(ex, "Error occurred while fetching and storing transactions");
             }
+
+            try
+            {
+                await CleanupStaleProcessingAuthorizations();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while cleaning up stale processing authorizations");
+            }
         }
     }
 
@@ -80,6 +90,24 @@ public class ScheduledTaskService : BackgroundService
                     _logger.LogError(ex, "Failed to fetch transactions for user {UserId}, account {AccountId}", userId, gcAccountId);
                 }
             }
+        }
+    }
+
+    private async Task CleanupStaleProcessingAuthorizations()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
+
+        var threshold = DateTime.UtcNow.AddHours(-24);
+        var staleAuthorizations = await dbContext.BankAuthorizations
+            .Where(ba => ba.Status == BankAuthorizationStaus.Processing && ba.CreatedAt < threshold)
+            .ToListAsync();
+
+        if (staleAuthorizations.Count > 0)
+        {
+            dbContext.BankAuthorizations.RemoveRange(staleAuthorizations);
+            await dbContext.SaveChangesAsync();
+            _logger.LogInformation("Cleaned up {Count} stale processing authorizations", staleAuthorizations.Count);
         }
     }
 }
