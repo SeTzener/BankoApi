@@ -20,7 +20,11 @@ namespace BankoApi.Controllers.Settings
             try
             {
                 var userId = User.GetUserId();
-                var result = _dbContext.BankAuthorizations.Where(ba => ba.UserId == userId).ToList();
+                var result = await _dbContext.BankAuthorizations
+                    .Where(ba => ba.UserId == userId)
+                    .Include(ba => ba.BankAccounts)
+                    .ToListAsync();
+
                 if (result.Count == 0) throw new NoBankAuthorizationFoundException($"The user {userId} doesn't have any bank authorization process started yet.");
                 return Ok(new GetBankAuthorizationsResponse
                 {
@@ -35,7 +39,16 @@ namespace BankoApi.Controllers.Settings
                         Status = it.Status,
                         InstitutionName = it.InstitutionName,
                         CreatedAt = it.CreatedAt,
-                        UpdatedAt = it.UpdatedAt
+                        UpdatedAt = it.UpdatedAt,
+                        Accounts = it.BankAccounts?.ToList().ConvertAll(acc => new BankAccountSummary()
+                        {
+                            BankAccountId = acc.BankAccountId,
+                            Iban = acc.Iban,
+                            Currency = acc.Currency,
+                            OwnerName = acc.OwnerName,
+                            AccountName = acc.AccountName,
+                            Product = acc.Product
+                        }) ?? new List<BankAccountSummary>()
                     })
                 });
             }
@@ -155,7 +168,20 @@ namespace BankoApi.Controllers.Settings
                 agreementId: validEua.Id
             );
 
-            // TODO: Salvare sul DB tutte le info necessarie
+            var userId = User.GetUserId();
+            var authorization = new BankAuthorization
+            {
+                UserId = userId,
+                RequisitionId = requisition.Id,
+                AgreementId = requisition.Agreement,
+                ReferenceId = requisition.Reference,
+                InstitutionId = requisition.InstitutionId,
+                InstitutionName = gcInstitution?.Name,
+                Status = BankAuthorizationStaus.Processing
+            };
+
+            _dbContext.BankAuthorizations.Add(authorization);
+            await _dbContext.SaveChangesAsync();
 
             return Ok(new UpsertEndUserAgreementResponse()
             {
@@ -163,7 +189,99 @@ namespace BankoApi.Controllers.Settings
                 Link = requisition.Link,
                 InstitutionId = requisition.InstitutionId,
                 RequisitionId = requisition.Id,
-                ReferenceId = requisition.Reference
+                ReferenceId = requisition.Reference,
+                BankAuthorizationId = authorization.Id
+            });
+        }
+
+        [HttpPost("bank-auth-callback")]
+        public async Task<IActionResult> BankAuthCallback([FromBody] BankAuthCallbackRequest request)
+        {
+            var userId = User.GetUserId();
+            var authorization = await _dbContext.BankAuthorizations
+                .FirstOrDefaultAsync(ba => ba.RequisitionId == request.RequisitionId && ba.UserId == userId);
+
+            if (authorization == null)
+            {
+                return NotFound(new ErrorResponse
+                {
+                    Message = BankAuthorizationErrorMessages.NoAuthorizationFound.ToString()
+                });
+            }
+
+            var requisition = await _goCardlessService.GetRequisitionAsync(request.RequisitionId);
+
+            if (requisition.Status != "LN")
+            {
+                authorization.Status = BankAuthorizationStaus.Error;
+                authorization.UpdatedAt = DateTime.UtcNow;
+                await _dbContext.SaveChangesAsync();
+
+                return BadRequest(new ErrorResponse
+                {
+                    Message = $"Authorization not completed. Status: {requisition.Status}"
+                });
+            }
+
+            var linkedAccounts = new List<LinkedBankAccount>();
+
+            foreach (var gcAccountId in requisition.Accounts)
+            {
+                Guid accountId = Guid.Parse(gcAccountId);
+
+                var details = await _goCardlessService.GetAccountDetailsAsync(accountId);
+
+                var bankAccount = new BankAccount
+                {
+                    BankAuthorizationId = authorization.Id,
+                    BankAccountId = gcAccountId,
+                    Iban = details?.Iban,
+                    Bban = details?.Bban,
+                    Currency = details?.Currency,
+                    OwnerName = details?.OwnerName,
+                    Product = details?.Product,
+                    AccountName = details?.DisplayName ?? details?.Name
+                };
+
+                _dbContext.BankAccounts.Add(bankAccount);
+
+                linkedAccounts.Add(new LinkedBankAccount
+                {
+                    BankAccountId = gcAccountId,
+                    Iban = details?.Iban,
+                    Currency = details?.Currency,
+                    OwnerName = details?.OwnerName,
+                    AccountName = details?.DisplayName ?? details?.Name,
+                    Product = details?.Product
+                });
+
+                try
+                {
+                    var transactions = await _goCardlessService.GetTransactionsAsync(accountId);
+                    if (transactions != null)
+                    {
+                        await _transactionsRepository.StoreTransactions(
+                            ctx: _dbContext,
+                            userId: userId,
+                            bankAccountId: accountId,
+                            transactions: transactions);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to fetch initial transactions for account {AccountId}", gcAccountId);
+                }
+            }
+
+            authorization.Status = BankAuthorizationStaus.Linked;
+            authorization.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new BankAuthCallbackResponse
+            {
+                BankAuthorizationId = authorization.Id,
+                Status = authorization.Status,
+                LinkedAccounts = linkedAccounts
             });
         }
 

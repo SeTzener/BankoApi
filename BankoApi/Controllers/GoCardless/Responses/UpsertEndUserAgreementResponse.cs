@@ -7,5 +7,6 @@
         public String AgreementId { get; set; }
         public String ReferenceId { get; set; }
         public String InstitutionId { get; set; }
+        public Guid BankAuthorizationId { get; set; }
     }
 }

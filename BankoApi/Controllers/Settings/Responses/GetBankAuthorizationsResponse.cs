@@ -19,5 +19,16 @@ namespace BankoApi.Controllers.Settings.Responses
         public String? InstitutionName { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public List<BankAccountSummary> Accounts { get; set; } = new();
+    }
+
+    public class BankAccountSummary
+    {
+        public String BankAccountId { get; set; } = string.Empty;
+        public String? Iban { get; set; }
+        public String? Currency { get; set; }
+        public String? OwnerName { get; set; }
+        public String? AccountName { get; set; }
+        public String? Product { get; set; }
     }
 }
