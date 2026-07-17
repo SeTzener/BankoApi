@@ -118,26 +118,16 @@ namespace BankoApi.Controllers.Settings
         [HttpPost("end-user-agreement")]
         public async Task<IActionResult> UpsertEndUserAgreement([FromBody] UpsertEndUserAgreementRequest request)
         {
-            var eua = await _goCardlessService.GetEndUserAgreement();
-            EndUserAgreement? validEua = _repository.HasValidNonAcceptedAgreement(eua);
+            if (request.InstitutionId == null || request.DaysOfAccess == null)
+            {
+                return BadRequest("InstitutionId and DaysOfAccess are required");
+            }
 
-            string institutionId;
-            if (validEua == null)
-            {
-                if (request.InstitutionId != null && request.DaysOfAccess != null)
-                {
-                    institutionId = request.InstitutionId;
-                    validEua = await _goCardlessService.CreateEndUserAgreement(institutionId: institutionId, daysOfAccess: request.DaysOfAccess.Value);
-                }
-                else
-                {
-                    return BadRequest("InstitutionId is required to create a new agreement");
-                }
-            }
-            else
-            {
-                institutionId = validEua.InstitutionId;
-            }
+            var validEua = await _goCardlessService.CreateEndUserAgreement(
+                institutionId: request.InstitutionId,
+                daysOfAccess: request.DaysOfAccess.Value);
+
+            var institutionId = validEua.InstitutionId;
 
             // Fetch and store institution data
             var gcInstitution = await _goCardlessService.GetInstitutionAsync(institutionId);

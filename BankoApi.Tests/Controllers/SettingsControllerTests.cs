@@ -553,7 +553,7 @@ public class SettingsControllerTests
     }
 
     [Fact]
-    public async Task UpsertEndUserAgreement_WithValidExistingEua_UsesExisting()
+    public async Task UpsertEndUserAgreement_WithValidExistingEua_CreatesNewEua()
     {
         using var ctx = CreateContext();
 
@@ -563,28 +563,21 @@ public class SettingsControllerTests
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.Is<HttpRequestMessage>(r =>
-                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("agreements/enduser/") && r.Method == HttpMethod.Get),
+                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("agreements/enduser/") && r.Method == HttpMethod.Post),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.Created)
             {
                 Content = new StringContent(JsonSerializer.Serialize(
                     new
                     {
-                        count = 1,
-                        results = new[]
-                        {
-                            new
-                            {
-                                id = "valid-eua",
-                                created = DateTime.UtcNow,
-                                institution_id = "TEST_BANK",
-                                max_historical_days = 30,
-                                access_valid_for_days = 30,
-                                access_scope = new[] { "balances", "transactions" },
-                                accepted = (DateTime?)null,
-                                reconfirmation = false
-                            }
-                        }
+                        id = "new-eua",
+                        created = DateTime.UtcNow,
+                        institution_id = "TEST_BANK",
+                        max_historical_days = 30,
+                        access_valid_for_days = 30,
+                        access_scope = new[] { "balances", "transactions" },
+                        accepted = (DateTime?)null,
+                        reconfirmation = false
                     },
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             });
@@ -606,7 +599,7 @@ public class SettingsControllerTests
                         redirect = "Banko://bank-auth-callback",
                         status = "CR",
                         institution_id = "TEST_BANK",
-                        agreement = "valid-eua",
+                        agreement = "new-eua",
                         reference = "ref-1",
                         accounts = Array.Empty<string>(),
                         user_language = "EN",
@@ -653,13 +646,17 @@ public class SettingsControllerTests
         });
         ctx.SaveChanges();
         var controller = CreateController(ctx, service, userId: userId);
-        var request = new UpsertEndUserAgreementRequest();
+        var request = new UpsertEndUserAgreementRequest
+        {
+            InstitutionId = "TEST_BANK",
+            DaysOfAccess = 30
+        };
 
         var result = await controller.UpsertEndUserAgreement(request);
 
         var okResult = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<UpsertEndUserAgreementResponse>(okResult.Value);
-        Assert.Equal("valid-eua", response.AgreementId);
+        Assert.Equal("new-eua", response.AgreementId);
     }
 
     [Fact]

@@ -111,17 +111,22 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.PostAsJsonAsync(
-            requestUri: "requisitions/",
-            value: new
-            {
-                redirect = "Banko://bank-auth-callback",
-                institution_id = institutionId,
-                agreement = agreementId,
-                reference = Guid.NewGuid().ToString(),
-                user_language = "EN"
-            });
-        response.EnsureSuccessStatusCode();
+        var formData = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "redirect", "Banko://bank-auth-callback" },
+            { "institution_id", institutionId },
+            { "agreement", agreementId },
+            { "reference", Guid.NewGuid().ToString() },
+            { "user_language", "EN" }
+        });
+
+        var response = await _httpClient.PostAsync("requisitions/", formData);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            _logger.LogError("GoCardless requisition creation failed: {StatusCode} - {Body}", response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
 
         return response.Content.ReadFromJsonAsync<Model.Requisition>().Result;
     }
