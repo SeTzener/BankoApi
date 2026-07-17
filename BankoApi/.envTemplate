@@ -2,4 +2,4 @@ DB_USER=<db username>
 DB_PASS=<db password>
 GOOGLE_CLOUD_IP=<0.0.0.0>
 GOCARDLESS_ID=<GoCardless secret ID for token>
-GOCARDLESS_ID_KEY=<GoCardless secret key for token>
+GOCARDLESS_KEY=<GoCardless secret key for token>

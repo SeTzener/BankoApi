@@ -125,4 +125,29 @@ public class GoCardlessService
 
         return response.Content.ReadFromJsonAsync<Model.Requisition>().Result;
     }
+
+    public async Task<Model.Requisition> GetRequisitionAsync(string requisitionId)
+    {
+        var token = await _tokenService.GetAccessTokenAsync();
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.GetAsync($"requisitions/{requisitionId}/");
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<Model.Requisition>()
+            ?? throw new InvalidOperationException($"Failed to deserialize requisition {requisitionId}");
+    }
+
+    public async Task<GoCardlessAccountDetails?> GetAccountDetailsAsync(Guid accountId)
+    {
+        var token = await _tokenService.GetAccessTokenAsync();
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.GetAsync($"accounts/{accountId}/details/");
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<GoCardlessAccountDetails>();
+    }
 }

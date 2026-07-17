@@ -1,4 +1,5 @@
 using BankoApi.Data;
+using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -57,9 +58,9 @@ public class ScheduledTaskService : BackgroundService
                 .Select(y => y.BankAccountId)
                 .ToListAsync();
 
-            if (bankAccountIds.Count != 0)
+            foreach (var gcAccountId in bankAccountIds)
             {
-                foreach (var gcAccountId in bankAccountIds)
+                try
                 {
                     Guid bankAccountId = Guid.Parse(gcAccountId);
                     var transactions = await goCardlessService.GetTransactionsAsync(bankAccountId);
@@ -68,6 +69,15 @@ public class ScheduledTaskService : BackgroundService
                         await repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
                         await dbContext.SaveChangesAsync();
                     }
+                }
+                catch (EndUserAgreementException ex)
+                {
+                    _logger.LogError(ex, "EUA expired for user {UserId}, account {AccountId}", userId, gcAccountId);
+                    repository.SetEuaExpirationStatus(dbContext, ex.Message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to fetch transactions for user {UserId}, account {AccountId}", userId, gcAccountId);
                 }
             }
         }
