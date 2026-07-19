@@ -17,6 +17,7 @@ namespace BankoApi.Controllers.Settings.Responses
         public String? AgreementId { get; set; }
         public BankAuthorizationStaus Status { get; set; }
         public String? InstitutionName { get; set; }
+        public String? InstitutionLogoUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public List<BankAccountSummary> Accounts { get; set; } = new();
