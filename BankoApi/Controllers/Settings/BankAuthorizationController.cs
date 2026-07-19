@@ -23,9 +23,37 @@ namespace BankoApi.Controllers.Settings
                 var result = await _dbContext.BankAuthorizations
                     .Where(ba => ba.UserId == userId)
                     .Include(ba => ba.BankAccounts)
+                    .Include(ba => ba.Institution)
                     .ToListAsync();
 
                 if (result.Count == 0) throw new NoBankAuthorizationFoundException($"The user {userId} doesn't have any bank authorization process started yet.");
+
+                var missingLogos = result
+                    .Where(ba => ba.Institution != null && string.IsNullOrEmpty(ba.Institution.LogoUrl) && ba.InstitutionId != null)
+                    .Select(ba => ba.Institution!)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var institution in missingLogos)
+                {
+                    try
+                    {
+                        var gcInstitution = await _goCardlessService.GetInstitutionAsync(institution.Id);
+                        if (gcInstitution?.Logo != null)
+                        {
+                            institution.LogoUrl = gcInstitution.Logo;
+                            institution.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to fetch logo for institution {InstitutionId}", institution.Id);
+                    }
+                }
+
+                if (missingLogos.Count > 0)
+                    await _dbContext.SaveChangesAsync();
+
                 return Ok(new GetBankAuthorizationsResponse
                 {
                     BankAuthorizations = result.ConvertAll(it => new BankAuth()
@@ -38,6 +66,7 @@ namespace BankoApi.Controllers.Settings
                         AgreementId = it.AgreementId,
                         Status = it.Status,
                         InstitutionName = it.InstitutionName,
+                        InstitutionLogoUrl = it.Institution?.LogoUrl,
                         CreatedAt = it.CreatedAt,
                         UpdatedAt = it.UpdatedAt,
                         Accounts = it.BankAccounts?.ToList().ConvertAll(acc => new BankAccountSummary()
