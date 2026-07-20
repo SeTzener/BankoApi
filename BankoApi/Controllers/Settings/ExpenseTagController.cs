@@ -12,7 +12,7 @@ namespace BankoApi.Controllers.Settings
         {
             return Ok(new GetExpenseTagsResponse
             {
-                ExpenseTags = _dbContext.ExpenseTag.ToList()
+                ExpenseTags = _dbContext.ExpenseTag.AsNoTracking().ToList()
             });
         }
 

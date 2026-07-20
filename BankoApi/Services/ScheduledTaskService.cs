@@ -60,10 +60,13 @@ public class ScheduledTaskService : BackgroundService
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
 
         var repository = scope.ServiceProvider.GetRequiredService<TransactionsRepository>();
-        List<Guid> userIds = await dbContext.Users.Select(a => a.UserId).ToListAsync();
+        List<Guid> userIds = await dbContext.Users.AsNoTracking().Select(a => a.UserId).ToListAsync();
         foreach (Guid userId in userIds)
         {
-            var bankAccountIds = await dbContext.BankAuthorizations.Where(ba => ba.UserId == userId)
+            using var userScope = _scopeFactory.CreateScope();
+            var userDbContext = userScope.ServiceProvider.GetRequiredService<BankoDbContext>();
+
+            var bankAccountIds = await userDbContext.BankAuthorizations.AsNoTracking().Where(ba => ba.UserId == userId)
                 .SelectMany(x => x.BankAccounts)
                 .Select(y => y.BankAccountId)
                 .ToListAsync();
@@ -76,14 +79,14 @@ public class ScheduledTaskService : BackgroundService
                     var transactions = await goCardlessService.GetTransactionsAsync(bankAccountId);
                     if (transactions != null)
                     {
-                        await repository.StoreTransactions(ctx: dbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
-                        await dbContext.SaveChangesAsync();
+                        await repository.StoreTransactions(ctx: userDbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
+                        await userDbContext.SaveChangesAsync();
                     }
                 }
                 catch (EndUserAgreementException ex)
                 {
                     _logger.LogError(ex, "EUA expired for user {UserId}, account {AccountId}", userId, gcAccountId);
-                    repository.SetEuaExpirationStatus(dbContext, ex.Message);
+                    repository.SetEuaExpirationStatus(userDbContext, ex.Message);
                 }
                 catch (Exception ex)
                 {

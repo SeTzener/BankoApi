@@ -22,6 +22,7 @@ namespace BankoApi.Controllers.Settings
                 var userId = User.GetUserId();
                 var result = await _dbContext.BankAuthorizations
                     .Where(ba => ba.UserId == userId)
+                    .AsNoTracking()
                     .Include(ba => ba.BankAccounts)
                     .Include(ba => ba.Institution)
                     .ToListAsync();

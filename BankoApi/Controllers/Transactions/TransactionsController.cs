@@ -60,6 +60,7 @@ public class TransactionsController : ControllerBase
         // Then load full entities with relationships
         var transactions = await _dbContext.Transactions
             .Where(t => transactionIds.Contains(t.Id))
+            .AsNoTracking()
             .Include(t => t.DebtorAccount)
             .Include(t => t.CreditorAccount)
             .Include(t => t.ExpenseTag)
@@ -74,6 +75,7 @@ public class TransactionsController : ControllerBase
             .ToList();
         var bankAccounts = await _dbContext.BankAccounts
             .Where(ba => gcAccountIds.Contains(ba.BankAccountId))
+            .AsNoTracking()
             .Include(ba => ba.BankAuthorization)
                 .ThenInclude(ba => ba.Institution)
             .ToListAsync();
