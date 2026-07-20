@@ -154,7 +154,6 @@ public static class TransactionsExtensions
         };
 
         ctx.DebtorAccounts.Add(newAccount);
-        ctx.SaveChanges();
         return newAccount;
     }
 }

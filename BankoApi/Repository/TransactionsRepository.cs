@@ -48,7 +48,26 @@ public class TransactionsRepository
 
     private async Task<Transactions> DiscardDuplicates(BankoDbContext dbContext, Transactions transactions)
     {
-        var storedTransactions = await dbContext.Transactions.Select(it => it.InternalTransactionId).ToListAsync();
+        var candidateIds = transactions.BankTransactions.Booked
+            .SelectMany(t => new[] { t.InternalTransactionId, t.TransactionId })
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+
+        var existingInternalIds = new HashSet<string>(await dbContext.Transactions
+            .AsNoTracking()
+            .Where(t => candidateIds.Contains(t.InternalTransactionId))
+            .Select(t => t.InternalTransactionId)
+            .ToListAsync());
+
+        var existingDbIds = new HashSet<string>(await dbContext.Transactions
+            .AsNoTracking()
+            .Where(t => candidateIds.Contains(t.Id))
+            .Select(t => t.Id)
+            .ToListAsync());
+
+        existingInternalIds.UnionWith(existingDbIds);
+
         var transactionsToStore = new Transactions
         {
             BankTransactions = new BankTransactions
@@ -59,7 +78,7 @@ public class TransactionsRepository
         };
         foreach (var newTransaction in transactions.BankTransactions.Booked)
             
-            if (!storedTransactions.Contains(newTransaction.InternalTransactionId) && !storedTransactions.Contains(newTransaction.TransactionId))
+            if (!existingInternalIds.Contains(newTransaction.InternalTransactionId) && !existingInternalIds.Contains(newTransaction.TransactionId))
             {
                 if (string.IsNullOrEmpty(newTransaction.TransactionId))
                 {

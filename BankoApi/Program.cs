@@ -49,7 +49,7 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "";
     var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
     var connectionString =
-        $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;";
+        $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;Max Pool Size=20;Min Pool Size=2;";
     options.UseLazyLoadingProxies().UseSqlServer(connectionString);
 });
 

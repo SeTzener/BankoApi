@@ -273,6 +273,7 @@ public class UsersController : ControllerBase
 
         var consentLogs = _dbContext.ConsentLogs
             .Where(cl => cl.UserId == userId)
+            .AsNoTracking()
             .Include(cl => cl.PrivacyPolicyVersion)
             .Select(cl => new
             {
