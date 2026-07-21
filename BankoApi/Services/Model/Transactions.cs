@@ -8,7 +8,6 @@ namespace BankoApi.Services.Model;
 using TransactionDao = Transaction;
 using DebtorAccountDao = Data.Dao.DebtorAccount;
 using CreditorAccountDao = Data.Dao.CreditorAccount;
-using PendingDao = Data.Dao.Pending;
 
 public class Transactions
 {
@@ -18,7 +17,6 @@ public class Transactions
 public class BankTransactions
 {
     public required List<Booked> Booked { get; set; }
-    public required List<Pending> Pending { get; set; }
 }
 
 public class Booked
@@ -80,14 +78,6 @@ public class CreditorAccount
     }
 }
 
-public class Pending
-{
-    public required string BookingDate { get; set; }
-    public required TransactionAmount TransactionAmount { get; set; }
-    public string? RemittanceInformationUnstructured { get; set; }
-    public List<string>? RemittanceInformationUnstructuredArray { get; set; }
-}
-
 public static class TransactionsExtensions
 {
     public static List<TransactionDao> ToTransactionDao(this Transactions transactions, BankoDbContext dbContext, Guid userId, Guid bankAccountId)
@@ -123,23 +113,6 @@ public static class TransactionsExtensions
                     : null,
                 RemittanceInformationStructuredArray = bookedTransaction.RemittanceInformationStructuredArray
             });
-    }
-
-    public static List<PendingDao> ToPendingDao(this List<Pending> pendings)
-    {
-        if (!pendings.Any())
-            return new List<PendingDao>();
-
-        return pendings.ConvertAll(pendingTransaction =>
-            new PendingDao
-            {
-                BookingDate = DateTime.Parse(pendingTransaction.BookingDate),
-                Amount = pendingTransaction.TransactionAmount.Amount,
-                Currency = pendingTransaction.TransactionAmount.Currency,
-                RemittanceInformationUnstructured = pendingTransaction?.RemittanceInformationUnstructured ?? "Transaction description not available",
-                RemittanceInformationUnstructuredArray = pendingTransaction?.RemittanceInformationUnstructuredArray ?? new List<string> { "Transaction description not available" }
-            }
-        );
     }
 
     private static DebtorAccountDao? GetDebtorAccountId(this DebtorAccount debtorAccount, BankoDbContext ctx)

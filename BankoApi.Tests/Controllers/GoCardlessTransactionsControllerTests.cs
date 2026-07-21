@@ -43,6 +43,27 @@ public class GoCardlessTransactionsControllerTests
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+
+        var bankAuthId = Guid.NewGuid();
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = bankAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.BankAccounts.Add(new BankAccount
+        {
+            Id = Guid.NewGuid(),
+            BankAuthorizationId = bankAuthId,
+            BankAccountId = bankAccountId.ToString(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.SaveChanges();
+
         var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
@@ -50,7 +71,6 @@ public class GoCardlessTransactionsControllerTests
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = CreateController(ctx, service, userId);
-        var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
 
@@ -62,6 +82,9 @@ public class GoCardlessTransactionsControllerTests
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var agreementId = Guid.NewGuid().ToString();
+
         ctx.Users.Add(new User
         {
             UserId = userId,
@@ -70,13 +93,21 @@ public class GoCardlessTransactionsControllerTests
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         });
-        var agreementId = Guid.NewGuid().ToString();
+        var bankAuthId = Guid.NewGuid();
         ctx.BankAuthorizations.Add(new BankAuthorization
         {
-            Id = Guid.NewGuid(),
+            Id = bankAuthId,
             UserId = userId,
             AgreementId = agreementId,
             Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.BankAccounts.Add(new BankAccount
+        {
+            Id = Guid.NewGuid(),
+            BankAuthorizationId = bankAuthId,
+            BankAccountId = bankAccountId.ToString(),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         });
@@ -90,7 +121,6 @@ public class GoCardlessTransactionsControllerTests
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = CreateController(ctx, service, userId);
-        var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
 
@@ -102,13 +132,31 @@ public class GoCardlessTransactionsControllerTests
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
 
-        // Return 500 to cause HttpRequestException
+        var bankAuthId = Guid.NewGuid();
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = bankAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.BankAccounts.Add(new BankAccount
+        {
+            Id = Guid.NewGuid(),
+            BankAuthorizationId = bankAuthId,
+            BankAccountId = bankAccountId.ToString(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.SaveChanges();
+
         var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
             new HttpResponseMessage(HttpStatusCode.InternalServerError));
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = CreateController(ctx, service, userId);
-        var bankAccountId = Guid.NewGuid();
 
         await Assert.ThrowsAsync<HttpRequestException>(() =>
             controller.FetchAndStoreTransactions(bankAccountId));
@@ -119,6 +167,26 @@ public class GoCardlessTransactionsControllerTests
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+
+        var bankAuthId = Guid.NewGuid();
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = bankAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.BankAccounts.Add(new BankAccount
+        {
+            Id = Guid.NewGuid(),
+            BankAuthorizationId = bankAuthId,
+            BankAccountId = bankAccountId.ToString(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.SaveChanges();
 
         var transactionsResponse = new
         {
@@ -137,7 +205,6 @@ public class GoCardlessTransactionsControllerTests
             });
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = CreateController(ctx, service, userId);
-        var bankAccountId = Guid.NewGuid();
 
         var result = await controller.FetchAndStoreTransactions(bankAccountId);
 

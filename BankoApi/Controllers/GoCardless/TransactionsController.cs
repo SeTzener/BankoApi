@@ -6,6 +6,7 @@ using BankoApi.Repository;
 using BankoApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankoApi.Controllers.GoCardless;
 
@@ -32,8 +33,13 @@ public class TransactionsController : ControllerBase
     {
         try
         {
+            var userId = User.GetUserId();
+
+            var ownsAccount = await _dbContext.BankAccounts
+                .AnyAsync(ba => ba.BankAccountId == bankAccountId.ToString() && ba.BankAuthorization.UserId == userId);
+            if (!ownsAccount) return Forbid();
+
             var transactions = await _goCardlessService.GetTransactionsAsync(bankAccountId);
-            Guid userId = User.GetUserId();
 
             if (transactions == null) return NotFound(FetchAndStoreTransactionResponse.NoTransactionsFound.ToString());
             await _repository.StoreTransactions(ctx: _dbContext, userId: userId, bankAccountId: bankAccountId, transactions);

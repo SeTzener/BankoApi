@@ -35,13 +35,3 @@ public class CreditorAccount
     public required string Iban { get; set; }
     public required string Bban { get; set; }
 }
-
-public class Pending
-{
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public required DateTime BookingDate { get; set; }
-    public required string Amount { get; set; }
-    public required string Currency { get; set; }
-    public required string RemittanceInformationUnstructured { get; set; }
-    public required List<string> RemittanceInformationUnstructuredArray { get; set; }
-}

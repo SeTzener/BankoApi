@@ -3,7 +3,6 @@ using BankoApi.Data.Dao;
 using BankoApi.Repository;
 using BankoApi.Services.Model;
 using Microsoft.EntityFrameworkCore;
-using PendingDto = BankoApi.Services.Model.Pending;
 
 namespace BankoApi.Tests.Repository;
 
@@ -57,20 +56,6 @@ public class TransactionsRepositoryTests
                         InternalTransactionId = "internal-2",
                         BankTransactionCode = "PMNT"
                     }
-                },
-                Pending = new List<PendingDto>
-                {
-                    new()
-                    {
-                        BookingDate = "2024-01-17",
-                        TransactionAmount = new TransactionAmount
-                        {
-                            Amount = "50.00",
-                            Currency = "EUR"
-                        },
-                        RemittanceInformationUnstructured = "Pending payment",
-                        RemittanceInformationUnstructuredArray = new List<string> { "Pending payment" }
-                    }
                 }
             }
         };
@@ -89,7 +74,6 @@ public class TransactionsRepositoryTests
         await ctx.SaveChangesAsync();
 
         Assert.Equal(2, ctx.Transactions.Count());
-        Assert.Equal(1, ctx.Pendings.Count());
     }
 
     [Fact]
@@ -150,8 +134,7 @@ public class TransactionsRepositoryTests
                         RemittanceInformationUnstructuredArray = new List<string> { "No ID" },
                         InternalTransactionId = "internal-new"
                     }
-                },
-                Pending = new List<PendingDto>()
+                }
             }
         };
 

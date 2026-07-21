@@ -95,10 +95,7 @@ namespace BankoApi.Controllers.Settings
         [HttpPut("BankAuthorization")]
         public async Task<IActionResult> UpsertBankAuthorization([FromBody] UpsertBankAuthorizationRequest request)
         {
-            if (!_dbContext.Users.Where(x => x.UserId == request.UserId).Any())
-            {
-                return Unauthorized();
-            }
+            var userId = User.GetUserId();
 
             var authorization = await _dbContext.BankAuthorizations
                 .FirstOrDefaultAsync(ba => ba.AgreementId == request.AgreementId)
@@ -120,11 +117,12 @@ namespace BankoApi.Controllers.Settings
 
             if (authorization.Id == Guid.Empty)
             {
-                authorization.UserId = request.UserId;
+                authorization.UserId = userId;
                 _dbContext.BankAuthorizations.Add(authorization);
             }
             else
             {
+                if (authorization.UserId != userId) return Forbid();
                 authorization.UpdatedAt = DateTime.UtcNow;
             }
 

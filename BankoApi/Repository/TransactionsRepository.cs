@@ -5,7 +5,6 @@ using BankoApi.Services.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text.RegularExpressions;
-using PendingDto = BankoApi.Services.Model.Pending;
 
 namespace BankoApi.Repository;
 
@@ -13,8 +12,6 @@ public class TransactionsRepository
 {
     public async Task StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
     {
-        UpdatePendingTransactions(ctx, transactions.BankTransactions.Pending);
-
         var transactionsToStore = (await DiscardDuplicates(dbContext:ctx, transactions: transactions))
                 .ToTransactionDao(dbContext: ctx, userId: userId, bankAccountId: bankAccountId)
                 .OrderByDescending(it => it.BookingDate);
@@ -26,6 +23,7 @@ public class TransactionsRepository
     {
         String agreementId = FindAgreementId(message);
         var result = dbContext.BankAuthorizations.FirstOrDefault(r => r.AgreementId == agreementId);
+        if (result == null) return;
         result.Status = Data.Dao.BankAuthorizationStaus.Expired;
         dbContext.SaveChanges();        
     }
@@ -36,14 +34,6 @@ public class TransactionsRepository
         Match match = Regex.Match(input, pattern);
 
         return match.Success ? match.Value : throw new EndUserAgreementException(FetchAndStoreTransactionResponse.AgreementIdNotFound.ToString());
-    }
-
-    private void UpdatePendingTransactions(BankoDbContext dbContext, List<PendingDto> pendings)
-    {
-        if (pendings.Count == 0) return;
-
-        dbContext.Pendings.RemoveRange();
-        dbContext.Pendings.AddRange(pendings.ToPendingDao());
     }
 
     private async Task<Transactions> DiscardDuplicates(BankoDbContext dbContext, Transactions transactions)
@@ -72,8 +62,7 @@ public class TransactionsRepository
         {
             BankTransactions = new BankTransactions
             {
-                Booked = new List<Booked>(),
-                Pending = new List<PendingDto>()
+                Booked = new List<Booked>()
             }
         };
         foreach (var newTransaction in transactions.BankTransactions.Booked)
