@@ -34,21 +34,25 @@ public class TransactionsController : ControllerBase
         if (fromDate > toDate)
             return BadRequest("The fromDate cannot be greater than toDate.");
 
+        var userId = User.GetUserId();
+
         toDate ??= DateTime.UtcNow;
         fromDate ??= await _dbContext.Transactions
+            .Where(t => t.UserId == userId)
             .DefaultIfEmpty()
             .MinAsync(t => (DateTime?)t.BookingDate) ?? DateTime.UtcNow.AddYears(-1);
 
         var skip = (pageNumber - 1) * pageSize;
 
-        // Query filtered by date range
-        var query = _dbContext.Transactions.Where(t => t.BookingDate >= fromDate && t.BookingDate <= toDate);
+        // Query filtered by userId and date range
+        var query = _dbContext.Transactions.Where(t => t.UserId == userId && t.BookingDate >= fromDate && t.BookingDate <= toDate);
 
         var totalCount = query.Count();
 
         // First get just the IDs with pagination
         var transactionIds = await _dbContext.Transactions
-            .Where(t => t.isDeleted != true &&
+            .Where(t => t.UserId == userId &&
+                        t.isDeleted != true &&
                         t.BookingDate >= fromDate && 
                         t.BookingDate <= toDate)
             .OrderByDescending(t => t.BookingDate)
@@ -119,8 +123,10 @@ public class TransactionsController : ControllerBase
     [HttpDelete("{transactionId}")]
     public async Task<IActionResult> DeleteTransaction([FromRoute] string transactionId)
     {
+        var userId = User.GetUserId();
         var transaction = _dbContext.Transactions.Find(transactionId);
         if (transaction == null) return NotFound();
+        if (transaction.UserId != userId) return Forbid();
         transaction.isDeleted = true;
         await _dbContext.SaveChangesAsync();
         return Ok("Transaction updated");
@@ -129,8 +135,10 @@ public class TransactionsController : ControllerBase
     [HttpPut("expense-tag")]
     public async Task<IActionResult> UpdateExpenseTags([FromBody] UpdateExpenseTagRequest request)
     {
+        var userId = User.GetUserId();
         var transaction = _dbContext.Transactions.Find(request.TransactionId);
         if (transaction == null) return NotFound();
+        if (transaction.UserId != userId) return Forbid();
 
         if (request.ExpenseTagId != null)
         {
@@ -153,8 +161,10 @@ public class TransactionsController : ControllerBase
     [HttpPut("{transactionId}/note")]
     public async Task<IActionResult> UpdateNote([FromRoute] string transactionId, [FromBody] UpdateNoteRequest request)
     {
+        var userId = User.GetUserId();
         var transaction = _dbContext.Transactions.Find(transactionId);
         if (transaction == null) return NotFound();
+        if (transaction.UserId != userId) return Forbid();
         transaction.Note = request.Note;
         _dbContext.Entry(transaction).State = EntityState.Modified;
         await _dbContext.SaveChangesAsync();

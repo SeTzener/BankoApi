@@ -19,11 +19,13 @@ namespace BankoApi.Controllers.Settings
 
             try
             {
+                var userId = User.GetUserId();
                 List<BankAccountResponse> bankAccounts = new List<BankAccountResponse>();
 
                 foreach (var id in bankAccountId)
                 {
-                    var result = await _dbContext.BankAccounts.FirstOrDefaultAsync(ba => ba.BankAccountId == id)
+                    var result = await _dbContext.BankAccounts
+                            .FirstOrDefaultAsync(ba => ba.BankAccountId == id && ba.BankAuthorization.UserId == userId)
                             ?? throw new BankAccountNotFoundException(
                                 message: $"The requested BankAccountId: {bankAccountId} was not found.");
                     bankAccounts.Add(new BankAccountResponse() {
@@ -54,7 +56,13 @@ namespace BankoApi.Controllers.Settings
         [HttpPut("BankAccount")]
         public async Task<IActionResult> UpsertBankAccount([FromBody] UpsertBankAccountRequest request)
         {
-            var account = await _dbContext.BankAccounts.FirstOrDefaultAsync(a => a.BankAccountId == request.BankAccountId)
+            var userId = User.GetUserId();
+
+            var authorization = await _dbContext.BankAuthorizations
+                .FirstOrDefaultAsync(ba => ba.Id == request.BankAuthorizationId && ba.UserId == userId);
+            if (authorization == null) return Forbid();
+
+            var account = await _dbContext.BankAccounts.FirstOrDefaultAsync(a => a.BankAccountId == request.BankAccountId && a.BankAuthorization.UserId == userId)
                 ?? new BankAccount()
                 {
                     BankAccountId = request.BankAccountId,

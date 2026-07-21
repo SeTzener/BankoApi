@@ -4,7 +4,6 @@ namespace BankoApi.Controllers.Settings.Requests
 {
     public class UpsertBankAuthorizationRequest
     {
-        public Guid UserId { get; set; }
         public BankAuthorizationStaus Status {  get; set; }
         public String? RequisitionId { get; set; }
         public String? InstitutionId { get; set; }

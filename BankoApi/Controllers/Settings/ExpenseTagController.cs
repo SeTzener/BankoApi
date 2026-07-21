@@ -10,15 +10,18 @@ namespace BankoApi.Controllers.Settings
         [HttpGet("expense-tags")]
         public async Task<IActionResult> GetAllTagsAsync()
         {
+            var userId = User.GetUserId();
             return Ok(new GetExpenseTagsResponse
             {
-                ExpenseTags = _dbContext.ExpenseTag.AsNoTracking().ToList()
+                ExpenseTags = _dbContext.ExpenseTag.AsNoTracking().Where(t => t.UserId == userId).ToList()
             });
         }
 
         [HttpPost("expense-tag")]
         public async Task<IActionResult> AddExpenseTagAsync([FromBody] ExpenseTag expenseTag)
         {
+            var userId = User.GetUserId();
+            expenseTag.UserId = userId;
             _dbContext.ExpenseTag.Add(expenseTag);
             await _dbContext.SaveChangesAsync();
             return Ok(new UpsertExpenseTagResponse { ExpenseTag = expenseTag });
@@ -27,8 +30,10 @@ namespace BankoApi.Controllers.Settings
         [HttpPut("expense-tag/{expenseTagId}")]
         public async Task<IActionResult> UpdateExpenseTagAsync(string expenseTagId, [FromBody] ExpenseTag expenseTag)
         {
+            var userId = User.GetUserId();
             var tag = _dbContext.ExpenseTag.Find(expenseTagId);
             if (tag == null) return NotFound();
+            if (tag.UserId != userId) return Forbid();
 
             tag.Name = expenseTag.Name;
             tag.Color = expenseTag.Color;
@@ -43,8 +48,10 @@ namespace BankoApi.Controllers.Settings
         [HttpDelete("expense-tag/{expenseTagId}")]
         public async Task<IActionResult> DeleteExpenseTagAsync(string expenseTagId)
         {
+            var userId = User.GetUserId();
             var tag = _dbContext.ExpenseTag.Find(expenseTagId);
             if (tag == null) return NotFound();
+            if (tag.UserId != userId) return Forbid();
             _dbContext.ExpenseTag.Remove(tag);
             await _dbContext.SaveChangesAsync();
 
