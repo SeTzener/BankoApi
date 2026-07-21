@@ -2,7 +2,6 @@ using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Services.Model;
 using Microsoft.EntityFrameworkCore;
-using PendingDto = BankoApi.Services.Model.Pending;
 using ServiceCreditorAccount = BankoApi.Services.Model.CreditorAccount;
 using ServiceDebtorAccount = BankoApi.Services.Model.DebtorAccount;
 
@@ -52,8 +51,7 @@ public class TransactionExtensionsTests
                             Bban = "00000000000"
                         }
                     }
-                },
-                Pending = new List<PendingDto>()
+                }
             }
         };
 
@@ -80,8 +78,7 @@ public class TransactionExtensionsTests
         {
             BankTransactions = new BankTransactions
             {
-                Booked = new List<Booked>(),
-                Pending = new List<PendingDto>()
+                Booked = new List<Booked>()
             }
         };
 
@@ -128,8 +125,7 @@ public class TransactionExtensionsTests
                             Bban = "existing-bban"
                         }
                     }
-                },
-                Pending = new List<PendingDto>()
+                }
             }
         };
 
@@ -138,65 +134,5 @@ public class TransactionExtensionsTests
         Assert.Single(result);
         Assert.NotNull(result[0].DebtorAccount);
         Assert.Equal(existingIban, result[0].DebtorAccount.Iban);
-    }
-
-    [Fact]
-    public void ToPendingDao_PendingTransactions_ReturnsDaoList()
-    {
-        var pendings = new List<PendingDto>
-        {
-            new()
-            {
-                BookingDate = "2024-06-20",
-                TransactionAmount = new TransactionAmount
-                {
-                    Amount = "75.00",
-                    Currency = "EUR"
-                },
-                RemittanceInformationUnstructured = "Pending tx",
-                RemittanceInformationUnstructuredArray = new List<string> { "Pending tx" }
-            }
-        };
-
-        var result = pendings.ToPendingDao();
-
-        Assert.Single(result);
-        Assert.Equal("75.00", result[0].Amount);
-        Assert.Equal("EUR", result[0].Currency);
-    }
-
-    [Fact]
-    public void ToPendingDao_EmptyList_ReturnsEmptyList()
-    {
-        var pendings = new List<PendingDto>();
-
-        var result = pendings.ToPendingDao();
-
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void ToPendingDao_NullableFields_NullCoalescingApplied()
-    {
-        var pendings = new List<PendingDto>
-        {
-            new()
-            {
-                BookingDate = "2024-06-20",
-                TransactionAmount = new TransactionAmount
-                {
-                    Amount = "50.00",
-                    Currency = "USD"
-                },
-                RemittanceInformationUnstructured = null,
-                RemittanceInformationUnstructuredArray = null
-            }
-        };
-
-        var result = pendings.ToPendingDao();
-
-        Assert.Single(result);
-        Assert.Equal("Transaction description not available", result[0].RemittanceInformationUnstructured);
-        Assert.Single(result[0].RemittanceInformationUnstructuredArray);
     }
 }

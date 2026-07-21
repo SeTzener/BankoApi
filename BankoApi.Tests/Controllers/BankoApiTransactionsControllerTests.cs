@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using BankoApi.Controllers.Settings.Requests;
 using BankoApi.Controllers.Transactions;
 using BankoApi.Controllers.Transactions.Requests;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +12,8 @@ namespace BankoApi.Tests.Controllers;
 
 public class BankoApiTransactionsControllerTests
 {
+    private static readonly Guid TestUserId = Guid.NewGuid();
+
     private BankoDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<BankoDbContext>()
@@ -18,12 +22,30 @@ public class BankoApiTransactionsControllerTests
         return new BankoDbContext(options);
     }
 
+    private static TransactionsController CreateControllerWithUser(BankoDbContext ctx)
+    {
+        var controller = new TransactionsController(ctx)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, TestUserId.ToString())
+                    }))
+                }
+            }
+        };
+        return controller;
+    }
+
     [Fact]
     public async Task GetTransactions_NoFilters_ReturnsOk()
     {
         using var ctx = CreateContext();
         SeedTransaction(ctx);
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
 
         var result = await controller.GetTransactions();
 
@@ -36,7 +58,7 @@ public class BankoApiTransactionsControllerTests
     {
         using var ctx = CreateContext();
         SeedTransaction(ctx);
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
 
         var fromDate = new DateTime(2024, 1, 1);
         var toDate = new DateTime(2024, 12, 31);
@@ -51,7 +73,7 @@ public class BankoApiTransactionsControllerTests
     public async Task GetTransactions_InvalidPageNumber_ReturnsBadRequest()
     {
         using var ctx = CreateContext();
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
 
         var result = await controller.GetTransactions(pageNumber: 0);
 
@@ -62,7 +84,7 @@ public class BankoApiTransactionsControllerTests
     public async Task GetTransactions_InvalidPageSize_ReturnsBadRequest()
     {
         using var ctx = CreateContext();
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
 
         var result = await controller.GetTransactions(pageSize: 0);
 
@@ -73,7 +95,7 @@ public class BankoApiTransactionsControllerTests
     public async Task GetTransactions_FromDateAfterToDate_ReturnsBadRequest()
     {
         using var ctx = CreateContext();
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
 
         var result = await controller.GetTransactions(
             fromDate: new DateTime(2024, 12, 31),
@@ -89,7 +111,7 @@ public class BankoApiTransactionsControllerTests
         var tx = new Transaction
         {
             Id = "tx-to-delete",
-            UserId = Guid.NewGuid(),
+            UserId = TestUserId,
             BankAccountId = Guid.NewGuid(),
             BookingDate = DateTime.UtcNow,
             ValueDate = DateTime.UtcNow,
@@ -102,7 +124,7 @@ public class BankoApiTransactionsControllerTests
         ctx.Transactions.Add(tx);
         ctx.SaveChanges();
 
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
         var result = await controller.DeleteTransaction("tx-to-delete");
 
         Assert.IsType<OkObjectResult>(result);
@@ -113,7 +135,7 @@ public class BankoApiTransactionsControllerTests
     public async Task DeleteTransaction_NonExistingTransaction_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
 
         var result = await controller.DeleteTransaction("non-existent");
 
@@ -135,7 +157,7 @@ public class BankoApiTransactionsControllerTests
         var tx = new Transaction
         {
             Id = "tx-tag-update",
-            UserId = Guid.NewGuid(),
+            UserId = TestUserId,
             BankAccountId = Guid.NewGuid(),
             BookingDate = DateTime.UtcNow,
             ValueDate = DateTime.UtcNow,
@@ -148,7 +170,7 @@ public class BankoApiTransactionsControllerTests
         ctx.Transactions.Add(tx);
         ctx.SaveChanges();
 
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
         var request = new UpdateExpenseTagRequest
         {
             TransactionId = "tx-tag-update",
@@ -169,7 +191,7 @@ public class BankoApiTransactionsControllerTests
         var tx = new Transaction
         {
             Id = "tx-clear-tag",
-            UserId = Guid.NewGuid(),
+            UserId = TestUserId,
             BankAccountId = Guid.NewGuid(),
             BookingDate = DateTime.UtcNow,
             ValueDate = DateTime.UtcNow,
@@ -183,7 +205,7 @@ public class BankoApiTransactionsControllerTests
         ctx.Transactions.Add(tx);
         ctx.SaveChanges();
 
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
         var request = new UpdateExpenseTagRequest
         {
             TransactionId = "tx-clear-tag",
@@ -201,7 +223,7 @@ public class BankoApiTransactionsControllerTests
     public async Task UpdateExpenseTags_NonExistingTransaction_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
         var request = new UpdateExpenseTagRequest
         {
             TransactionId = "non-existent",
@@ -220,7 +242,7 @@ public class BankoApiTransactionsControllerTests
         var tx = new Transaction
         {
             Id = "tx-note",
-            UserId = Guid.NewGuid(),
+            UserId = TestUserId,
             BankAccountId = Guid.NewGuid(),
             BookingDate = DateTime.UtcNow,
             ValueDate = DateTime.UtcNow,
@@ -233,7 +255,7 @@ public class BankoApiTransactionsControllerTests
         ctx.Transactions.Add(tx);
         ctx.SaveChanges();
 
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
         var request = new UpdateNoteRequest { Note = "Updated note" };
 
         var result = await controller.UpdateNote("tx-note", request);
@@ -247,7 +269,7 @@ public class BankoApiTransactionsControllerTests
     public async Task UpdateNote_NonExistingTransaction_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = new TransactionsController(ctx);
+        var controller = CreateControllerWithUser(ctx);
         var request = new UpdateNoteRequest { Note = "Note" };
 
         var result = await controller.UpdateNote("non-existent", request);
@@ -260,7 +282,7 @@ public class BankoApiTransactionsControllerTests
         ctx.Transactions.Add(new Transaction
         {
             Id = "tx-1",
-            UserId = Guid.NewGuid(),
+            UserId = TestUserId,
             BankAccountId = Guid.NewGuid(),
             BookingDate = new DateTime(2024, 6, 15),
             ValueDate = new DateTime(2024, 6, 15),

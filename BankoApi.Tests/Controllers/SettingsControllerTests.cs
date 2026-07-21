@@ -23,6 +23,8 @@ namespace BankoApi.Tests.Controllers;
 
 public class SettingsControllerTests
 {
+    private static readonly Guid TestUserId = Guid.NewGuid();
+
     private BankoDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<BankoDbContext>()
@@ -59,13 +61,14 @@ public class SettingsControllerTests
         ctx.ExpenseTag.Add(new ExpenseTag
         {
             Id = "tag-1",
+            UserId = TestUserId,
             Name = "Groceries",
             Color = 0xFF0000,
             isEarning = false
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
         var result = await controller.GetAllTagsAsync();
 
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -77,7 +80,7 @@ public class SettingsControllerTests
     public async Task GetAllTagsAsync_NoTags_ReturnsEmptyList()
     {
         using var ctx = CreateContext();
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
 
         var result = await controller.GetAllTagsAsync();
 
@@ -90,7 +93,7 @@ public class SettingsControllerTests
     public async Task AddExpenseTagAsync_ValidTag_ReturnsOk()
     {
         using var ctx = CreateContext();
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
         var tag = new ExpenseTag
         {
             Id = "new-tag",
@@ -103,6 +106,7 @@ public class SettingsControllerTests
 
         Assert.IsType<OkObjectResult>(result);
         Assert.Single(ctx.ExpenseTag);
+        Assert.Equal(TestUserId, ctx.ExpenseTag.First().UserId);
     }
 
     [Fact]
@@ -112,13 +116,14 @@ public class SettingsControllerTests
         ctx.ExpenseTag.Add(new ExpenseTag
         {
             Id = "tag-update",
+            UserId = TestUserId,
             Name = "Old Name",
             Color = 0x000000,
             isEarning = false
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
         var updatedTag = new ExpenseTag
         {
             Id = "tag-update",
@@ -140,7 +145,7 @@ public class SettingsControllerTests
     public async Task UpdateExpenseTagAsync_NonExistingTag_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
         var updatedTag = new ExpenseTag
         {
             Id = "nonexistent",
@@ -161,13 +166,14 @@ public class SettingsControllerTests
         ctx.ExpenseTag.Add(new ExpenseTag
         {
             Id = "tag-delete",
+            UserId = TestUserId,
             Name = "Delete Me",
             Color = 0,
             isEarning = false
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
         var result = await controller.DeleteExpenseTagAsync("tag-delete");
 
         Assert.IsType<OkObjectResult>(result);
@@ -178,7 +184,7 @@ public class SettingsControllerTests
     public async Task DeleteExpenseTagAsync_NonExistingTag_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: TestUserId);
 
         var result = await controller.DeleteExpenseTagAsync("nonexistent");
 
@@ -220,41 +226,14 @@ public class SettingsControllerTests
     }
 
     [Fact]
-    public async Task UpsertBankAuthorization_InvalidUser_ReturnsUnauthorized()
-    {
-        using var ctx = CreateContext();
-        var controller = CreateController(ctx);
-        var request = new UpsertBankAuthorizationRequest
-        {
-            UserId = Guid.NewGuid(),
-            Status = BankAuthorizationStaus.Processing,
-            AgreementId = "agreement-1"
-        };
-
-        var result = await controller.UpsertBankAuthorization(request);
-
-        Assert.IsType<UnauthorizedResult>(result);
-    }
-
-    [Fact]
     public async Task UpsertBankAuthorization_NewAuthorization_CreatesIt()
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
-        ctx.Users.Add(new User
-        {
-            UserId = userId,
-            Email = "test@example.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        });
-        ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: userId);
         var request = new UpsertBankAuthorizationRequest
         {
-            UserId = userId,
             Status = BankAuthorizationStaus.Processing,
             AgreementId = "agreement-new",
             InstitutionId = "TEST_BANK",
@@ -267,6 +246,7 @@ public class SettingsControllerTests
         var response = Assert.IsType<UpsertBankAuthorizationResponse>(okResult.Value);
         Assert.Equal("agreement-new", response.AgreementId);
         Assert.Equal("TEST_BANK", response.InstitutionId);
+        Assert.Equal(userId, response.UserId);
     }
 
     [Fact]
@@ -274,14 +254,6 @@ public class SettingsControllerTests
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
-        ctx.Users.Add(new User
-        {
-            UserId = userId,
-            Email = "test@example.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        });
         var authId = Guid.NewGuid();
         ctx.BankAuthorizations.Add(new BankAuthorization
         {
@@ -294,10 +266,9 @@ public class SettingsControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: userId);
         var request = new UpsertBankAuthorizationRequest
         {
-            UserId = userId,
             Status = BankAuthorizationStaus.Linked,
             AgreementId = "agreement-existing",
             RequisitionId = "req-1"
@@ -315,7 +286,16 @@ public class SettingsControllerTests
     public async Task GetBankAccount_ValidIds_ReturnsAccounts()
     {
         using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
         var bankAuthId = Guid.NewGuid();
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = bankAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
         ctx.BankAccounts.Add(new BankAccount
         {
             Id = Guid.NewGuid(),
@@ -328,7 +308,7 @@ public class SettingsControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: userId);
         var result = await controller.GetBankAccount(new List<string> { "acc-1" });
 
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -351,7 +331,7 @@ public class SettingsControllerTests
     public async Task GetBankAccount_NonExistingId_ReturnsNotFound()
     {
         using var ctx = CreateContext();
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: Guid.NewGuid());
 
         var result = await controller.GetBankAccount(new List<string> { "nonexistent" });
 
@@ -362,8 +342,19 @@ public class SettingsControllerTests
     public async Task UpsertBankAccount_NewAccount_CreatesIt()
     {
         using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
         var bankAuthId = Guid.NewGuid();
-        var controller = CreateController(ctx);
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = bankAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.SaveChanges();
+
+        var controller = CreateController(ctx, userId: userId);
         var request = new UpsertBankAccountRequest
         {
             BankAuthorizationId = bankAuthId,
@@ -385,7 +376,16 @@ public class SettingsControllerTests
     public async Task UpsertBankAccount_ExistingAccount_UpdatesIt()
     {
         using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
         var bankAuthId = Guid.NewGuid();
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = bankAuthId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Linked,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
         ctx.BankAccounts.Add(new BankAccount
         {
             Id = Guid.NewGuid(),
@@ -397,7 +397,7 @@ public class SettingsControllerTests
         });
         ctx.SaveChanges();
 
-        var controller = CreateController(ctx);
+        var controller = CreateController(ctx, userId: userId);
         var request = new UpsertBankAccountRequest
         {
             BankAuthorizationId = bankAuthId,
