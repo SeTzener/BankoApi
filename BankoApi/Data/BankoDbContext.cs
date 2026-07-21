@@ -17,7 +17,6 @@ public class BankoDbContext : DbContext
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
     public DbSet<BankAccount> BankAccounts { get; set; }
     public DbSet<BankAuthorization> BankAuthorizations { get; set; }
-    public DbSet<Pending> Pendings { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<PrivacyPolicyVersion> PrivacyPolicyVersions { get; set; }
     public DbSet<ConsentLog> ConsentLogs { get; set; }
