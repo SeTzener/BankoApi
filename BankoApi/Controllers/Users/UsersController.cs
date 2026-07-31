@@ -56,7 +56,7 @@ public class UsersController : ControllerBase
             await _dbContext.SaveChangesAsync();
 
             var user = _dbContext.Users.Find(userId)!;
-            var (accessToken, refreshToken, expiresIn) = _tokenService.GenerateTokens(user);
+            var (accessToken, refreshToken, expiresIn) = await _tokenService.GenerateTokensAsync(user);
 
             return Ok(new UserResponse
             {
@@ -85,7 +85,7 @@ public class UsersController : ControllerBase
             var userId = _repository.ValidateAccount(_dbContext, request.Email, request.Password);
 
             var user = _dbContext.Users.Find(userId)!;
-            var (accessToken, refreshToken, expiresIn) = _tokenService.GenerateTokens(user);
+            var (accessToken, refreshToken, expiresIn) = await _tokenService.GenerateTokensAsync(user);
 
             return Ok(new UserResponse
             {

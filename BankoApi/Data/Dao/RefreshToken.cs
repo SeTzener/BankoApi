@@ -18,6 +18,9 @@ public class RefreshToken
 
     [Required] public bool IsRevoked { get; set; }
 
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = [];
+
     [Required] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [Required] public DateTime ExpiresAt { get; set; }

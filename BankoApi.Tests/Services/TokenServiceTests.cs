@@ -50,14 +50,14 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public void GenerateTokens_ReturnsValidTokens()
+    public async Task GenerateTokens_ReturnsValidTokens()
     {
         using var ctx = CreateContext();
         var config = CreateConfig();
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
 
-        var (accessToken, refreshToken, expiresIn) = service.GenerateTokens(user);
+        var (accessToken, refreshToken, expiresIn) = await service.GenerateTokensAsync(user);
 
         Assert.NotEmpty(accessToken);
         Assert.NotEmpty(refreshToken);
@@ -71,14 +71,14 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public void GenerateTokens_CreatesRefreshTokenInDb()
+    public async Task GenerateTokens_CreatesRefreshTokenInDb()
     {
         using var ctx = CreateContext();
         var config = CreateConfig();
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
 
-        service.GenerateTokens(user);
+        await service.GenerateTokensAsync(user);
 
         var storedToken = ctx.RefreshTokens.FirstOrDefault(rt => rt.UserId == user.UserId);
         Assert.NotNull(storedToken);
@@ -94,7 +94,7 @@ public class TokenServiceTests
         var config = CreateConfig();
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
-        var (_, originalRefresh, _) = service.GenerateTokens(user);
+        var (_, originalRefresh, _) = await service.GenerateTokensAsync(user);
 
         var (userId, accessToken, refreshToken, expiresIn) = await service.RefreshTokenAsync(originalRefresh);
 
@@ -136,14 +136,14 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public async Task RefreshTokenAsync_UsedToken_RevokesAll()
+    public async Task RefreshTokenAsync_UsedToken_RevokesSingleTokenOnly()
     {
         using var ctx = CreateContext();
         var config = CreateConfig();
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
-        var (_, firstRefresh, _) = service.GenerateTokens(user);
-        var (_, secondRefresh, _) = service.GenerateTokens(user);
+        var (_, firstRefresh, _) = await service.GenerateTokensAsync(user);
+        var (_, secondRefresh, _) = await service.GenerateTokensAsync(user);
 
         var usedToken = ctx.RefreshTokens.First(rt => rt.Token == firstRefresh);
         usedToken.IsUsed = true;
@@ -152,8 +152,11 @@ public class TokenServiceTests
         await Assert.ThrowsAsync<SecurityTokenException>(() =>
             service.RefreshTokenAsync(firstRefresh));
 
-        var allTokens = ctx.RefreshTokens.Where(rt => rt.UserId == user.UserId).ToList();
-        Assert.All(allTokens, t => Assert.True(t.IsRevoked));
+        var revokedToken = ctx.RefreshTokens.First(rt => rt.Token == firstRefresh);
+        Assert.True(revokedToken.IsRevoked);
+
+        var otherToken = ctx.RefreshTokens.First(rt => rt.Token == secondRefresh);
+        Assert.False(otherToken.IsRevoked);
     }
 
     [Fact]
@@ -163,7 +166,7 @@ public class TokenServiceTests
         var config = CreateConfig();
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
-        var (_, refresh, _) = service.GenerateTokens(user);
+        var (_, refresh, _) = await service.GenerateTokensAsync(user);
 
         var storedToken = ctx.RefreshTokens.First(rt => rt.Token == refresh);
         storedToken.IsRevoked = true;
@@ -180,7 +183,7 @@ public class TokenServiceTests
         var config = CreateConfig();
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
-        var (_, refresh, _) = service.GenerateTokens(user);
+        var (_, refresh, _) = await service.GenerateTokensAsync(user);
 
         await service.RevokeRefreshTokenAsync(refresh);
 
@@ -199,7 +202,7 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public void GenerateTokens_DefaultConfig_UsesDefaults()
+    public async Task GenerateTokens_DefaultConfig_UsesDefaults()
     {
         using var ctx = CreateContext();
         var config = new ConfigurationBuilder()
@@ -211,7 +214,7 @@ public class TokenServiceTests
         var service = new TokenService(config, ctx);
         var user = CreateUser(ctx);
 
-        var (accessToken, _, expiresIn) = service.GenerateTokens(user);
+        var (accessToken, _, expiresIn) = await service.GenerateTokensAsync(user);
 
         Assert.NotEmpty(accessToken);
         Assert.Equal(900L, expiresIn);

@@ -5,6 +5,7 @@ using System.Text;
 using BankoApi.Data;
 using BankoApi.Data.Dao;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BankoApi.Services;
@@ -20,7 +21,7 @@ public class TokenService
         _context = context;
     }
 
-    public virtual (string accessToken, string refreshToken, long expiresIn) GenerateTokens(User user)
+    public virtual async Task<(string accessToken, string refreshToken, long expiresIn)> GenerateTokensAsync(User user)
     {
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
@@ -39,7 +40,7 @@ public class TokenService
         };
 
         _context.RefreshTokens.Add(refreshTokenEntity);
-        _context.SaveChanges();
+        await _context.SaveChangesAsync();
 
         return (accessToken, refreshToken, expiresIn);
     }
@@ -58,19 +59,38 @@ public class TokenService
 
         if (storedToken.IsUsed)
         {
-            RevokeUserTokens(storedToken.UserId);
+            RevokeSingleToken(storedToken);
             throw new SecurityTokenException("Refresh token is already used — possible token reuse detected");
         }
 
         if (storedToken.ExpiresAt < DateTime.UtcNow)
             throw new SecurityTokenException("Refresh token has expired");
 
+        IDbContextTransaction? transaction = null;
+        try
+        {
+            transaction = await _context.Database.BeginTransactionAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // Transactions not supported (e.g., in-memory test database)
+        }
+
         storedToken.IsUsed = true;
         _context.RefreshTokens.Update(storedToken);
         await _context.SaveChangesAsync();
 
-        var (accessToken, newRefreshToken, expiresIn) = GenerateTokens(storedToken.User);
-        return (storedToken.UserId, accessToken, newRefreshToken, expiresIn);
+        try
+        {
+            var (accessToken, newRefreshToken, expiresIn) = await GenerateTokensAsync(storedToken.User);
+            if (transaction != null) await transaction.CommitAsync();
+            return (storedToken.UserId, accessToken, newRefreshToken, expiresIn);
+        }
+        catch
+        {
+            if (transaction != null) await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task RevokeRefreshTokenAsync(string refreshToken)
@@ -144,16 +164,10 @@ public class TokenService
             : 7;
     }
 
-    private void RevokeUserTokens(Guid userId)
+    private void RevokeSingleToken(RefreshToken token)
     {
-        var activeTokens = _context.RefreshTokens
-            .Where(rt => rt.UserId == userId && !rt.IsRevoked);
-        
-        foreach (var token in activeTokens)
-        {
-            token.IsRevoked = true;
-        }
-        
+        token.IsRevoked = true;
+        _context.RefreshTokens.Update(token);
         _context.SaveChanges();
     }
 }

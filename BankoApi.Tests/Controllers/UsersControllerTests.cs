@@ -31,8 +31,8 @@ public class UsersControllerTests
     private UsersController CreateController(BankoDbContext ctx)
     {
         _tokenServiceMock
-            .Setup(t => t.GenerateTokens(It.IsAny<User>()))
-            .Returns(("test-access-token", "test-refresh-token", 900L));
+            .Setup(t => t.GenerateTokensAsync(It.IsAny<User>()))
+            .ReturnsAsync(("test-access-token", "test-refresh-token", 900L));
 
         return new UsersController(ctx, new UserRepository(), _tokenService, Mock.Of<ILogger<UsersController>>());
     }
