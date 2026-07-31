@@ -80,6 +80,8 @@ public class BankoDbContext : DbContext
         {
             entity.HasIndex(rt => rt.Token).IsUnique();
 
+            entity.Property(rt => rt.RowVersion).IsRowVersion();
+
             entity.HasOne(rt => rt.User)
                   .WithMany()
                   .HasForeignKey(rt => rt.UserId)

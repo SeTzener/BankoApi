@@ -54,7 +54,7 @@ public class UserRepository
         if (!isPasswordValid)
             throw new PasswordNotFoundException($"The password for the UserId {user.UserId} is not valid");
 
-        user.LastLoginAt = DateTime.Now;
+        user.LastLoginAt = DateTime.UtcNow;
         context.SaveChanges();
         
         return user!.UserId;
