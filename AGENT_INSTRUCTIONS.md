@@ -6,6 +6,30 @@ This file gives an AI agent a quick overview of where the Banko project code liv
 
 ---
 
+## Database Operations
+
+### Production SQL Server
+
+* Hosted on the GCP VM (`banko-20250101`, external IP from `GOOGLE_CLOUD_IP` in `.env`).
+* Runs as an Azure SQL Edge Docker container named `sqlserver`, mapped to host port `1433`.
+* Database files persist on the host at `/home/gaetanovf/sql-data` (bind-mounted to `/var/opt/mssql`).
+* Container restart policy is `unless-stopped`; app container is `banko-api` (image `setzener/banko-api:<commit-sha>`).
+* App database connection config lives in the VM `~/.env` (`DB_USER`, `DB_PASS`, `GOOGLE_CLOUD_IP`). Never write secrets into this file or any repo file.
+
+### Scheduled Jobs (VM crontab)
+
+* `07:00` daily — `~/sql_backup.sh`: `BACKUP DATABASE BankoDb`, zips, emails to the backup mailbox.
+* Every `5 min` — `~/sql_watchdog.sh`: checks SQL is reachable; on failure restarts the container, and emails an alert if it is still down on the next run.
+
+### Troubleshooting
+
+* SQL up? `docker exec sqlserver /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$DB_PASS" -C -Q "SELECT name FROM sys.databases"`
+* `BankoUser` login exists? `SELECT name FROM sys.sql_logins` (recreate with `CREATE LOGIN BankoUser WITH PASSWORD='...'` if missing, then map to `BankoDb` and `BankoDb_Dev` with `db_owner`).
+* Schema changes are managed via EF Core migrations in `BankoApi/Migrations`.
+* Restore from a nightly backup: locate the `.bak` in `/home/gaetanovf/sql_backups` (or `~/sql-data/backups`), then `RESTORE DATABASE BankoDb FROM DISK = N'...' WITH REPLACE`.
+
+---
+
 ## Local Paths
 
 * Banko Mobile:
