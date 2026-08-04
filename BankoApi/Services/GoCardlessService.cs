@@ -8,6 +8,15 @@ namespace BankoApi.Services;
 
 public class GoCardlessService
 {
+    private const int MaxRetries = 3;
+    private static readonly TimeSpan RetryBaseDelay = TimeSpan.FromMilliseconds(500);
+    private static readonly HashSet<HttpStatusCode> TransientStatusCodes = new()
+    {
+        HttpStatusCode.BadGateway,
+        HttpStatusCode.ServiceUnavailable,
+        HttpStatusCode.GatewayTimeout
+    };
+
     private readonly HttpClient _httpClient;
     private readonly GoCardlessTokenService _tokenService;
     private ILogger<GoCardlessService> _logger;
@@ -20,6 +29,23 @@ public class GoCardlessService
         _logger = logger;
     }
 
+    private async Task<HttpResponseMessage> SendWithTransientRetryAsync(Func<Task<HttpResponseMessage>> sendAsync)
+    {
+        for (var attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            var response = await sendAsync();
+            if (!TransientStatusCodes.Contains(response.StatusCode) || attempt == MaxRetries)
+                return response;
+
+            var delay = RetryBaseDelay * attempt;
+            _logger.LogWarning("GoCardless returned {StatusCode}; retrying in {Delay} (attempt {Attempt}/{MaxRetries})",
+                response.StatusCode, delay, attempt, MaxRetries);
+            await Task.Delay(delay);
+        }
+
+        throw new InvalidOperationException("Retry loop terminated without returning a response");
+    }
+
     // TODO():Change this Transactions from DAO to a Model dto
     public async Task<Transactions?> GetTransactionsAsync(Guid accountId)
     {
@@ -28,7 +54,7 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync($"accounts/{accountId}/transactions/");
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync($"accounts/{accountId}/transactions/"));
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -50,7 +76,7 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync("agreements/enduser/");
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync("agreements/enduser/"));
         response.EnsureSuccessStatusCode();
 
         return response.Content.ReadFromJsonAsync<PaginatedEndUserAgreements>().Result ?? new PaginatedEndUserAgreements();
@@ -84,7 +110,7 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync($"institutions/{institutionId}/");
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync($"institutions/{institutionId}/"));
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<GoCardlessInstitution>();
@@ -97,7 +123,7 @@ public class GoCardlessService
             new AuthenticationHeaderValue("Bearer", token);
 
         var url = countryCode != null ? $"institutions/?country={countryCode}" : "institutions/";
-        var response = await _httpClient.GetAsync(url);
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync(url));
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<List<GoCardlessInstitution>>() ?? new List<GoCardlessInstitution>();
@@ -138,7 +164,7 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync($"requisitions/{requisitionId}/");
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync($"requisitions/{requisitionId}/"));
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<Model.Requisition>()
@@ -151,7 +177,7 @@ public class GoCardlessService
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _httpClient.GetAsync($"accounts/{accountId}/details/");
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync($"accounts/{accountId}/details/"));
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<GoCardlessAccountDetails>();

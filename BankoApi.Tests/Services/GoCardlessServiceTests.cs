@@ -82,6 +82,73 @@ public class GoCardlessServiceTests
     }
 
     [Fact]
+    public async Task GetTransactionsAsync_TransientServiceUnavailableThenSuccess_ReturnsTransactions()
+    {
+        var accountId = Guid.NewGuid();
+        var transactionsResponse = new
+        {
+            transactions = new
+            {
+                booked = new[]
+                {
+                    new
+                    {
+                        transactionId = "tx-1",
+                        bookingDate = "2024-01-15",
+                        valueDate = "2024-01-15",
+                        transactionAmount = new { amount = "100.00", currency = "EUR" },
+                        remittanceInformationUnstructured = "Test payment",
+                        remittanceInformationUnstructuredArray = new[] { "Test payment" },
+                        internalTransactionId = "internal-1",
+                        bankTransactionCode = "PMNT"
+                    }
+                },
+                pending = Array.Empty<object>()
+            }
+        };
+
+        var callCount = 0;
+        var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
+        {
+            callCount++;
+            if (callCount < 3)
+                return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(transactionsResponse,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            };
+        });
+
+        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+        var result = await service.GetTransactionsAsync(accountId);
+
+        Assert.NotNull(result);
+        Assert.Equal(3, callCount);
+        Assert.Single(result.BankTransactions.Booked);
+        Assert.Equal("tx-1", result.BankTransactions.Booked[0].TransactionId);
+    }
+
+    [Fact]
+    public async Task GetTransactionsAsync_TransientServiceUnavailableExhausted_ThrowsException()
+    {
+        var accountId = Guid.NewGuid();
+        var callCount = 0;
+        var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
+        {
+            callCount++;
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        });
+
+        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            service.GetTransactionsAsync(accountId));
+        Assert.Equal(3, callCount);
+    }
+
+    [Fact]
     public async Task GetEndUserAgreement_Success_ReturnsAgreements()
     {
         var agreementsResponse = new

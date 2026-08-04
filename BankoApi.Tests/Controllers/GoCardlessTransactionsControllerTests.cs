@@ -128,7 +128,7 @@ public class GoCardlessTransactionsControllerTests
     }
 
     [Fact]
-    public async Task FetchAndStoreTransactions_GeneralException_ThrowsHttpRequestException()
+    public async Task FetchAndStoreTransactions_ProviderError_ReturnsServiceUnavailable()
     {
         using var ctx = CreateContext();
         var userId = Guid.NewGuid();
@@ -158,8 +158,10 @@ public class GoCardlessTransactionsControllerTests
         var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
         var controller = CreateController(ctx, service, userId);
 
-        await Assert.ThrowsAsync<HttpRequestException>(() =>
-            controller.FetchAndStoreTransactions(bankAccountId));
+        var result = await controller.FetchAndStoreTransactions(bankAccountId);
+
+        var statusCodeResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, statusCodeResult.StatusCode);
     }
 
     [Fact]

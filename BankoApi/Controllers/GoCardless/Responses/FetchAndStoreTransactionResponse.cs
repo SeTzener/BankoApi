@@ -6,6 +6,7 @@
        SomethingWentWrong,
        EndUserAgreementExpired,
        AgreementIdNotFound,
-       NoTransactionsFound
+       NoTransactionsFound,
+       BankProviderUnavailable
     }
 }

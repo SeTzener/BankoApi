@@ -41,6 +41,16 @@ public class BankoDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Balance>()
+            .Property(b => b.Amount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Transaction>()
+            .HasIndex(t => new { t.UserId, t.BookingDate });
+
+        modelBuilder.Entity<Transaction>()
+            .HasIndex(t => t.InternalTransactionId);
+
         modelBuilder.Entity<Transaction>()
             .HasOne(t => t.DebtorAccount) // Explicitly set the relationship
             .WithMany() // Assuming a one-to-many relationship

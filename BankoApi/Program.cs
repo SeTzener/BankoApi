@@ -50,7 +50,11 @@ builder.Services.AddDbContext<BankoDbContext>(options =>
     var dbPassword = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
     var connectionString =
         $"Server={baseUrl},1433;Database={db};User Id={dbUser};Password={dbPassword};TrustServerCertificate=True;Max Pool Size=20;Min Pool Size=2;";
-    options.UseLazyLoadingProxies().UseSqlServer(connectionString);
+    options.UseLazyLoadingProxies().UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+        sqlOptions.CommandTimeout(120);
+    });
 });
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]
@@ -83,10 +87,12 @@ var version = builder.Configuration["GoCardlessAPI:version"] ?? throw new Except
 builder.Services.AddHttpClient<GoCardlessTokenService>(client =>
 {
     client.BaseAddress = new Uri(new Uri(baseUrl), version);
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddHttpClient<GoCardlessService>(client =>
 {
     client.BaseAddress = new Uri(new Uri(baseUrl), version);
+    client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.Accept.Add(
         new MediaTypeWithQualityHeaderValue("application/json"));
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Banko/1.0");
