@@ -16,7 +16,7 @@ public class TransactionsRepository
 {
     public async Task StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
     {
-        await UpdateExistingTransactions(ctx, transactions, bankAccountId);
+        await UpdateExistingTransactions(ctx, userId, transactions, bankAccountId);
         await ctx.SaveChangesAsync();
     }
 
@@ -37,7 +37,7 @@ public class TransactionsRepository
         return match.Success ? match.Value : throw new EndUserAgreementException(FetchAndStoreTransactionResponse.AgreementIdNotFound.ToString());
     }
 
-    private async Task UpdateExistingTransactions(BankoDbContext ctx, Transactions transactions, Guid bankAccountId)
+    private async Task UpdateExistingTransactions(BankoDbContext ctx, Guid userId, Transactions transactions, Guid bankAccountId)
     {
         foreach (var newTransaction in transactions.BankTransactions.Booked)
         {
@@ -57,7 +57,7 @@ public class TransactionsRepository
                 }
                 else
                 {
-                    CreateNewTransaction(ctx, newTransaction, bankAccountId);
+                    CreateNewTransaction(ctx, userId, newTransaction, bankAccountId);
                 }
             }
         }
@@ -75,8 +75,6 @@ public class TransactionsRepository
         existingTransaction.CreditorName = newTransaction.CreditorName;
         existingTransaction.DebtorName = newTransaction.DebtorName;
         existingTransaction.RemittanceInformationStructuredArray = newTransaction.RemittanceInformationStructuredArray;
-        existingTransaction.ExpenseTagId = null;
-        existingTransaction.Note = null;
         existingTransaction.isDeleted = false;
 
         if (newTransaction.DebtorAccount != null)
@@ -94,12 +92,12 @@ public class TransactionsRepository
         }
     }
 
-    private void CreateNewTransaction(BankoDbContext ctx, Booked newTransaction, Guid bankAccountId)
+    private void CreateNewTransaction(BankoDbContext ctx, Guid userId, Booked newTransaction, Guid bankAccountId)
     {
         var transaction = new Transaction
         {
             Id = newTransaction.TransactionId!,
-            UserId = GetCurrentUserId(ctx),
+            UserId = userId,
             BankAccountId = bankAccountId,
             BookingDate = DateTime.Parse(newTransaction.BookingDate),
             ValueDate = DateTime.Parse(newTransaction.ValueDate),
@@ -132,22 +130,6 @@ public class TransactionsRepository
         }
 
         ctx.Transactions.Add(transaction);
-    }
-
-    private Guid GetCurrentUserId(BankoDbContext ctx)
-    {
-        var userId = Guid.NewGuid();
-        var user = ctx.Users.FirstOrDefault(u => u.UserId == userId);
-        if (user == null)
-        {
-            user = new User
-            {
-                UserId = userId,
-                Email = "default@example.com"
-            };
-            ctx.Users.Add(user);
-        }
-        return user.UserId;
     }
 
     private BankoApi.Data.Dao.DebtorAccount GetOrCreateDebtorAccount(BankoDbContext ctx, BankoApi.Services.Model.DebtorAccount debtorAccount)
