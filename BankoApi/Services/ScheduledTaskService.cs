@@ -79,7 +79,7 @@ public class ScheduledTaskService : BackgroundService
                     var transactions = await goCardlessService.GetTransactionsAsync(bankAccountId);
                     if (transactions != null)
                     {
-                        await repository.StoreTransactions(ctx: userDbContext, userId: userId, transactions: transactions, bankAccountId: bankAccountId);
+                        await repository.StoreTransactions(userDbContext, userId, bankAccountId, transactions);
                         await userDbContext.SaveChangesAsync();
                     }
                 }

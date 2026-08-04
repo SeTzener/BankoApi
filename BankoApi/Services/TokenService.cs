@@ -66,30 +66,44 @@ public class TokenService
         if (storedToken.ExpiresAt < DateTime.UtcNow)
             throw new SecurityTokenException("Refresh token has expired");
 
-        IDbContextTransaction? transaction = null;
+        return await ExecuteRefreshTransactionAsync(storedToken);
+    }
+
+    private async Task<(Guid userId, string accessToken, string refreshToken, long expiresIn)> ExecuteRefreshTransactionAsync(RefreshToken storedToken)
+    {
+        var executionStrategy = _context.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await TryBeginTransactionAsync();
+
+            storedToken.IsUsed = true;
+            _context.RefreshTokens.Update(storedToken);
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                var (accessToken, newRefreshToken, expiresIn) = await GenerateTokensAsync(storedToken.User);
+                if (transaction != null) await transaction.CommitAsync();
+                return (storedToken.UserId, accessToken, newRefreshToken, expiresIn);
+            }
+            catch
+            {
+                if (transaction != null) await transaction.RollbackAsync();
+                throw;
+            }
+        });
+    }
+
+    private async Task<IDbContextTransaction?> TryBeginTransactionAsync()
+    {
         try
         {
-            transaction = await _context.Database.BeginTransactionAsync();
+            return await _context.Database.BeginTransactionAsync();
         }
         catch (InvalidOperationException)
         {
             // Transactions not supported (e.g., in-memory test database)
-        }
-
-        storedToken.IsUsed = true;
-        _context.RefreshTokens.Update(storedToken);
-        await _context.SaveChangesAsync();
-
-        try
-        {
-            var (accessToken, newRefreshToken, expiresIn) = await GenerateTokensAsync(storedToken.User);
-            if (transaction != null) await transaction.CommitAsync();
-            return (storedToken.UserId, accessToken, newRefreshToken, expiresIn);
-        }
-        catch
-        {
-            if (transaction != null) await transaction.RollbackAsync();
-            throw;
+            return null;
         }
     }
 
