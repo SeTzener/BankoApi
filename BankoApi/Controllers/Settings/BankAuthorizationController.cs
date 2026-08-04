@@ -187,18 +187,22 @@ namespace BankoApi.Controllers.Settings
             );
 
             var userId = User.GetUserId();
-            var authorization = new BankAuthorization
-            {
-                UserId = userId,
-                RequisitionId = requisition.Id,
-                AgreementId = requisition.Agreement,
-                ReferenceId = requisition.Reference,
-                InstitutionId = requisition.InstitutionId,
-                InstitutionName = gcInstitution?.Name,
-                Status = BankAuthorizationStaus.Processing
-            };
+            var authorization = await _dbContext.BankAuthorizations
+                .FirstOrDefaultAsync(ba => ba.UserId == userId && ba.InstitutionId == institutionId)
+                ?? new BankAuthorization { UserId = userId };
 
-            _dbContext.BankAuthorizations.Add(authorization);
+            authorization.RequisitionId = requisition.Id;
+            authorization.AgreementId = requisition.Agreement;
+            authorization.ReferenceId = requisition.Reference;
+            authorization.InstitutionId = institutionId;
+            authorization.InstitutionName = gcInstitution?.Name;
+            authorization.Status = BankAuthorizationStaus.Processing;
+
+            if (authorization.Id == Guid.Empty)
+                _dbContext.BankAuthorizations.Add(authorization);
+            else
+                authorization.UpdatedAt = DateTime.UtcNow;
+
             await _dbContext.SaveChangesAsync();
 
             return Ok(new UpsertEndUserAgreementResponse()
