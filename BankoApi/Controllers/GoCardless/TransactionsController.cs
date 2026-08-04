@@ -56,5 +56,13 @@ public class TransactionsController : ControllerBase
                 Message = FetchAndStoreTransactionResponse.EndUserAgreementExpired.ToString()
             });
         }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "GoCardless provider unavailable");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ErrorResponse()
+            {
+                Message = FetchAndStoreTransactionResponse.BankProviderUnavailable.ToString()
+            });
+        }
     }
 }
