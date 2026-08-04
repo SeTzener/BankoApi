@@ -74,17 +74,21 @@ public class TransactionsRepositoryTests
         await ctx.SaveChangesAsync();
 
         Assert.Equal(2, ctx.Transactions.Count());
+        Assert.All(ctx.Transactions, t => Assert.Equal(userId, t.UserId));
+        Assert.DoesNotContain(ctx.Users, u => u.Email == "default@example.com");
     }
 
     [Fact]
     public async Task StoreTransactions_DuplicateInternalTransactionId_SkipsDuplicates()
     {
         using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
         ctx.Transactions.Add(new Transaction
         {
             Id = "existing-tx",
-            UserId = Guid.NewGuid(),
-            BankAccountId = Guid.NewGuid(),
+            UserId = userId,
+            BankAccountId = bankAccountId,
             BookingDate = DateTime.UtcNow,
             ValueDate = DateTime.UtcNow,
             Amount = "50.00",
@@ -96,8 +100,6 @@ public class TransactionsRepositoryTests
         await ctx.SaveChangesAsync();
 
         var repo = new TransactionsRepository();
-        var userId = Guid.NewGuid();
-        var bankAccountId = Guid.NewGuid();
         var transactions = CreateSampleTransactions();
 
         await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
@@ -105,6 +107,45 @@ public class TransactionsRepositoryTests
 
         // Only tx-2 should be added (tx-1 has duplicate InternalTransactionId)
         Assert.Equal(2, ctx.Transactions.Count());
+        Assert.All(ctx.Transactions, t => Assert.Equal(userId, t.UserId));
+    }
+
+    [Fact]
+    public async Task StoreTransactions_DuplicateInternalTransactionId_UpdatesRowAndPreservesUserAnnotations()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        const string expenseTagId = "tag-1";
+
+        ctx.Transactions.Add(new Transaction
+        {
+            Id = "existing-tx",
+            UserId = userId,
+            BankAccountId = bankAccountId,
+            BookingDate = DateTime.UtcNow,
+            ValueDate = DateTime.UtcNow,
+            Amount = "50.00",
+            Currency = "EUR",
+            RemittanceInformationUnstructured = "Existing",
+            RemittanceInformationUnstructuredArray = new List<string> { "Existing" },
+            InternalTransactionId = "internal-1",
+            ExpenseTagId = expenseTagId,
+            Note = "User note"
+        });
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = CreateSampleTransactions();
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var updated = ctx.Transactions.First(t => t.InternalTransactionId == "internal-1");
+        Assert.Equal("100.00", updated.Amount);
+        Assert.Equal(expenseTagId, updated.ExpenseTagId);
+        Assert.Equal("User note", updated.Note);
+        Assert.False(updated.isDeleted);
     }
 
     [Fact]
