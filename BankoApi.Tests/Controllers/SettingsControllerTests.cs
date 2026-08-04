@@ -784,6 +784,132 @@ public class SettingsControllerTests
     }
 
     [Fact]
+    public async Task UpsertEndUserAgreement_ExistingAuthorization_UpdatesInsteadOfDuplicating()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+
+        var existingAuth = new BankAuthorization
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            InstitutionId = "TEST_BANK",
+            Status = BankAuthorizationStaus.Expired,
+            RequisitionId = "old-req",
+            AgreementId = "old-eua",
+            CreatedAt = DateTime.UtcNow.AddDays(-30),
+            UpdatedAt = DateTime.UtcNow.AddDays(-30)
+        };
+        ctx.BankAuthorizations.Add(existingAuth);
+        ctx.Users.Add(new User
+        {
+            UserId = userId,
+            Email = "test@example.com",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        ctx.SaveChanges();
+
+        var handlerMock = MockHelpers.CreateHandlerWithToken();
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r =>
+                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("agreements/enduser/") && r.Method == HttpMethod.Post),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(
+                    new
+                    {
+                        id = "new-eua",
+                        created = DateTime.UtcNow,
+                        institution_id = "TEST_BANK",
+                        max_historical_days = 30,
+                        access_valid_for_days = 30,
+                        access_scope = new[] { "balances", "transactions" },
+                        accepted = (DateTime?)null,
+                        reconfirmation = false
+                    },
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            });
+
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r =>
+                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("requisitions/")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(
+                    new
+                    {
+                        id = "new-req",
+                        created = DateTime.UtcNow,
+                        redirect = "Banko://bank-auth-callback",
+                        status = "CR",
+                        institution_id = "TEST_BANK",
+                        agreement = "new-eua",
+                        reference = "ref-updated",
+                        accounts = Array.Empty<string>(),
+                        user_language = "EN",
+                        link = "https://bank.link/req",
+                        ssn = "",
+                        account_selection = false,
+                        redirect_immediate = false
+                    },
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            });
+
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r =>
+                    r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith("institutions/TEST_BANK/")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(
+                    new
+                    {
+                        id = "TEST_BANK",
+                        name = "Test Bank",
+                        bic = "TESTBIC22",
+                        transaction_total_days = "180",
+                        countries = new[] { "GB" },
+                        logo = "https://example.com/logo.png",
+                        max_access_valid_for_days = "90"
+                    },
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            });
+
+        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+        var controller = CreateController(ctx, service, userId: userId);
+        var request = new UpsertEndUserAgreementRequest
+        {
+            InstitutionId = "TEST_BANK",
+            DaysOfAccess = 30
+        };
+
+        var result = await controller.UpsertEndUserAgreement(request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<UpsertEndUserAgreementResponse>(okResult.Value);
+        Assert.Equal(existingAuth.Id, response.BankAuthorizationId);
+
+        var saved = Assert.Single(ctx.BankAuthorizations);
+        Assert.Equal(existingAuth.Id, saved.Id);
+        Assert.Equal("new-req", saved.RequisitionId);
+        Assert.Equal("new-eua", saved.AgreementId);
+        Assert.Equal(BankAuthorizationStaus.Processing, saved.Status);
+    }
+
+    [Fact]
     public async Task GetBankAuthorization_WithAccounts_ReturnsNestedAccounts()
     {
         using var ctx = CreateContext();

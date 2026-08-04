@@ -130,6 +130,11 @@ public class BankoDbContext : DbContext
             entity.HasIndex(e => e.RequisitionId)
                   .IsUnique();
 
+            // One active bank connection per user and institution
+            entity.HasIndex(e => new { e.UserId, e.InstitutionId })
+                  .IsUnique()
+                  .HasDatabaseName("idx_bank_auth_user_institution");
+
             // Create an index on Status for querying connections that need action
             entity.HasIndex(e => e.Status)
                   .HasDatabaseName("idx_bank_auth_status");
