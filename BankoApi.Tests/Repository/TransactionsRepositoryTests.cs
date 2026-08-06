@@ -546,6 +546,125 @@ public class TransactionsRepositoryTests
     }
 
     [Fact]
+    public async Task StoreTransactions_ExistingTransactionWithEmptyInternalIdAndIncomingInternalId_UpdatesRow()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, bankAccountId, "tx-1", "",
+            DateTime.Parse("2024-01-15")));
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-1", internalTransactionId: "internal-1", amount: "200.00")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var stored = Assert.Single(ctx.Transactions);
+        Assert.Equal("200.00", stored.Amount);
+        Assert.Equal("internal-1", stored.InternalTransactionId);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_ExistingTransactionOutsideBookingDateWindow_UpdatesRow()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, bankAccountId, "tx-old", "",
+            DateTime.Parse("2020-01-01")));
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-old", internalTransactionId: "internal-new", amount: "200.00")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var stored = Assert.Single(ctx.Transactions);
+        Assert.Equal("200.00", stored.Amount);
+        Assert.Equal("internal-new", stored.InternalTransactionId);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_ExistingTransactionIdInAnotherAccount_SkipsInsert()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var accountA = Guid.NewGuid();
+        var accountB = Guid.NewGuid();
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, accountA, "tx-1", "internal-1",
+            DateTime.Parse("2024-01-15")));
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-1", internalTransactionId: "internal-2", amount: "200.00")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, accountB, transactions);
+        await ctx.SaveChangesAsync();
+
+        var stored = Assert.Single(ctx.Transactions);
+        Assert.Equal(accountA, stored.BankAccountId);
+        Assert.Equal("50.00", stored.Amount);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_DuplicateTransactionIdWithinBatch_DifferentInternalIds_StoresSingleRow()
+    {
+        using var ctx = CreateContext();
+        var repo = new TransactionsRepository();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-1", internalTransactionId: "internal-a"),
+                    CreateBooked(transactionId: "tx-1", internalTransactionId: "internal-b")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        Assert.Single(ctx.Transactions);
+    }
+
+    [Fact]
     public async Task StoreTransactions_DuplicateInternalTransactionIdWithinBatch_StoresSingleRow()
     {
         using var ctx = CreateContext();

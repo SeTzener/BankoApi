@@ -4,6 +4,7 @@ using BankoApi.Data.Dao;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Services.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Text.RegularExpressions;
 
@@ -15,6 +16,13 @@ using DebtorAccountDao = BankoApi.Data.Dao.DebtorAccount;
 public class TransactionsRepository
 {
     private const int SaveBatchSize = 200;
+
+    private readonly ILogger<TransactionsRepository>? _logger;
+
+    public TransactionsRepository(ILogger<TransactionsRepository>? logger = null)
+    {
+        _logger = logger;
+    }
 
     public async Task StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
     {
@@ -29,15 +37,22 @@ public class TransactionsRepository
                 && t.BookingDate >= oldestBookingDate.AddDays(-1))
             .ToListAsync();
 
-        var existingByKey = new Dictionary<string, Transaction>();
+        var existingById = new Dictionary<string, Transaction>();
+        var existingByInternalId = new Dictionary<string, Transaction>();
         foreach (var transaction in existingTransactions)
         {
-            existingByKey.TryAdd(GetMatchKey(transaction), transaction);
+            existingById.TryAdd(transaction.Id, transaction);
+            if (!string.IsNullOrEmpty(transaction.InternalTransactionId))
+            {
+                existingByInternalId.TryAdd(transaction.InternalTransactionId, transaction);
+            }
         }
 
         var creditorByIban = new Dictionary<string, CreditorAccountDao>();
         var debtorByIban = new Dictionary<string, DebtorAccountDao>();
-        var seenKeys = new HashSet<string>();
+        var seenTransactionIds = new HashSet<string>();
+        var seenInternalIds = new HashSet<string>();
+        var plannedInserts = new List<(Booked Booked, string Id)>();
         var pendingTransactions = new List<Transaction>();
 
         foreach (var newTransaction in booked)
@@ -49,35 +64,94 @@ public class TransactionsRepository
             if (string.IsNullOrEmpty(id) && string.IsNullOrEmpty(newTransaction.InternalTransactionId))
                 continue;
 
-            var key = GetMatchKey(newTransaction, id!);
-            if (!seenKeys.Add(key)) continue;
+            if (!seenTransactionIds.Add(id!)) continue;
+            if (!string.IsNullOrEmpty(newTransaction.InternalTransactionId)
+                && !seenInternalIds.Add(newTransaction.InternalTransactionId))
+                continue;
 
-            if (existingByKey.TryGetValue(key, out var existingTransaction))
+            var existingTransaction = FindExistingTransaction(existingById, existingByInternalId, id!, newTransaction.InternalTransactionId);
+            if (existingTransaction != null)
             {
+                BackfillInternalTransactionId(existingTransaction, newTransaction);
                 UpdateTransactionData(ctx, existingTransaction, newTransaction, creditorByIban, debtorByIban);
             }
             else
             {
-                pendingTransactions.Add(
-                    CreateNewTransaction(ctx, userId, newTransaction, bankAccountId, id!, creditorByIban, debtorByIban));
+                plannedInserts.Add((newTransaction, id!));
             }
         }
 
+        await ResolvePlannedInserts(ctx, plannedInserts, pendingTransactions, userId, bankAccountId, creditorByIban, debtorByIban);
         await SaveInBatches(ctx, pendingTransactions);
     }
 
-    private static string GetMatchKey(Transaction transaction)
+    private static Transaction? FindExistingTransaction(
+        Dictionary<string, Transaction> existingById,
+        Dictionary<string, Transaction> existingByInternalId,
+        string id,
+        string internalTransactionId)
     {
-        return string.IsNullOrEmpty(transaction.InternalTransactionId)
-            ? transaction.Id
-            : transaction.InternalTransactionId;
+        if (!string.IsNullOrEmpty(internalTransactionId)
+            && existingByInternalId.TryGetValue(internalTransactionId, out var byInternalId))
+        {
+            return byInternalId;
+        }
+
+        return existingById.TryGetValue(id, out var byId) ? byId : null;
     }
 
-    private static string GetMatchKey(Booked booked, string id)
+    private static void BackfillInternalTransactionId(Transaction existingTransaction, Booked newTransaction)
     {
-        return string.IsNullOrEmpty(booked.InternalTransactionId)
-            ? id
-            : booked.InternalTransactionId;
+        if (string.IsNullOrEmpty(existingTransaction.InternalTransactionId)
+            && !string.IsNullOrEmpty(newTransaction.InternalTransactionId))
+        {
+            existingTransaction.InternalTransactionId = newTransaction.InternalTransactionId;
+        }
+    }
+
+    private async Task ResolvePlannedInserts(
+        BankoDbContext ctx,
+        List<(Booked Booked, string Id)> plannedInserts,
+        List<Transaction> pendingTransactions,
+        Guid userId,
+        Guid bankAccountId,
+        Dictionary<string, CreditorAccountDao> creditorByIban,
+        Dictionary<string, DebtorAccountDao> debtorByIban)
+    {
+        if (plannedInserts.Count == 0) return;
+
+        var insertIds = plannedInserts.Select(p => p.Id).ToList();
+        var existingById = await ctx.Transactions
+            .Where(t => insertIds.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id);
+
+        foreach (var planned in plannedInserts.ToList())
+        {
+            if (!existingById.TryGetValue(planned.Id, out var existingTransaction))
+                continue;
+
+            plannedInserts.Remove(planned);
+            if (existingTransaction.UserId == userId && existingTransaction.BankAccountId == bankAccountId)
+            {
+                _logger?.LogWarning(
+                    "Transaction {Id} already exists but was outside the booking-date lookup window; updating instead of inserting",
+                    planned.Id);
+                BackfillInternalTransactionId(existingTransaction, planned.Booked);
+                UpdateTransactionData(ctx, existingTransaction, planned.Booked, creditorByIban, debtorByIban);
+            }
+            else
+            {
+                _logger?.LogWarning(
+                    "Transaction {Id} already exists under a different bank account; skipping insert to avoid a duplicate primary key",
+                    planned.Id);
+            }
+        }
+
+        foreach (var planned in plannedInserts)
+        {
+            pendingTransactions.Add(
+                CreateNewTransaction(ctx, userId, planned.Booked, bankAccountId, planned.Id, creditorByIban, debtorByIban));
+        }
     }
 
     private async Task SaveInBatches(BankoDbContext ctx, List<Transaction> pendingTransactions)
