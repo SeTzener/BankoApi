@@ -2,7 +2,12 @@ using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Repository;
 using BankoApi.Services.Model;
+using BankoApi.Tests.Utilities;
 using Microsoft.EntityFrameworkCore;
+using CreditorAccountDao = BankoApi.Data.Dao.CreditorAccount;
+using DebtorAccountDao = BankoApi.Data.Dao.DebtorAccount;
+using ServiceCreditorAccount = BankoApi.Services.Model.CreditorAccount;
+using ServiceDebtorAccount = BankoApi.Services.Model.DebtorAccount;
 
 namespace BankoApi.Tests.Repository;
 
@@ -218,5 +223,350 @@ public class TransactionsRepositoryTests
 
         Assert.Throws<BankoApi.Exceptions.GoCardless.Transactions.EndUserAgreementException>(
             () => repo.SetEuaExpirationStatus(ctx, "No GUID in this message"));
+    }
+
+    private static Booked CreateBooked(
+        string? transactionId,
+        string internalTransactionId,
+        string amount = "100.00",
+        string? creditorIban = null,
+        string? creditorBban = null,
+        string? debtorIban = null,
+        string? debtorBban = null)
+    {
+        return new Booked
+        {
+            TransactionId = transactionId,
+            BookingDate = "2024-01-15",
+            ValueDate = "2024-01-15",
+            TransactionAmount = new TransactionAmount
+            {
+                Amount = amount,
+                Currency = "EUR"
+            },
+            RemittanceInformationUnstructured = "Payment",
+            RemittanceInformationUnstructuredArray = new List<string> { "Payment" },
+            InternalTransactionId = internalTransactionId,
+            BankTransactionCode = "PMNT",
+            CreditorAccount = creditorIban != null
+                ? new ServiceCreditorAccount { Iban = creditorIban, Bban = creditorBban ?? "default-bban" }
+                : null,
+            DebtorAccount = debtorIban != null
+                ? new ServiceDebtorAccount { Iban = debtorIban, Bban = debtorBban ?? "default-bban" }
+                : null
+        };
+    }
+
+    private static Transaction CreateSeedTransaction(
+        Guid userId,
+        Guid bankAccountId,
+        string id,
+        string internalTransactionId,
+        DateTime bookingDate,
+        CreditorAccountDao? creditorAccount = null,
+        DebtorAccountDao? debtorAccount = null)
+    {
+        return new Transaction
+        {
+            Id = id,
+            UserId = userId,
+            BankAccountId = bankAccountId,
+            BookingDate = bookingDate,
+            ValueDate = bookingDate,
+            Amount = "50.00",
+            Currency = "EUR",
+            RemittanceInformationUnstructured = "Existing",
+            RemittanceInformationUnstructuredArray = new List<string> { "Existing" },
+            InternalTransactionId = internalTransactionId,
+            CreditorAccount = creditorAccount,
+            DebtorAccount = debtorAccount,
+            isDeleted = false
+        };
+    }
+
+    [Fact]
+    public async Task StoreTransactions_NewCreditorAccount_CreatesNewRow()
+    {
+        using var ctx = CreateContext();
+        var repo = new TransactionsRepository();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(
+                        transactionId: "tx-1",
+                        internalTransactionId: "internal-1",
+                        creditorIban: "NO9386011117947",
+                        creditorBban: "93860111179")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        Assert.Single(ctx.CreditorAccounts);
+        var stored = ctx.Transactions.Single();
+        AccountAssertions.AssertEqual("NO9386011117947", "93860111179", stored.CreditorAccount);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_ExistingCreditorAccount_DiscardsChangeAndReusesRow()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var existingCreditor = new CreditorAccountDao
+        {
+            Iban = "NO9386011117947",
+            Bban = "original-bban"
+        };
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, bankAccountId, "tx-1", "internal-1",
+            DateTime.Parse("2024-01-15"), creditorAccount: existingCreditor));
+        await ctx.SaveChangesAsync();
+        var seededCreditorId = existingCreditor.Id;
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(
+                        transactionId: "tx-1",
+                        internalTransactionId: "internal-1",
+                        creditorIban: "NO9386011117947",
+                        creditorBban: "changed-bban")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var storedCreditor = ctx.CreditorAccounts.Single();
+        Assert.Equal(seededCreditorId, storedCreditor.Id);
+        Assert.Equal("original-bban", storedCreditor.Bban);
+        var stored = ctx.Transactions.Single();
+        Assert.Equal(seededCreditorId, stored.CreditorAccount!.Id);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_ExistingTransactionWithNewCreditorIban_CreatesNewRow()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, bankAccountId, "tx-1", "internal-1",
+            DateTime.Parse("2024-01-15"),
+            creditorAccount: new CreditorAccountDao { Iban = "NO9386011117947", Bban = "original-bban" }));
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(
+                        transactionId: "tx-1",
+                        internalTransactionId: "internal-1",
+                        creditorIban: "NO1234567890123",
+                        creditorBban: "12345678901")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        Assert.Equal(2, ctx.CreditorAccounts.Count());
+        var stored = ctx.Transactions.Single();
+        AccountAssertions.AssertEqual("NO1234567890123", "12345678901", stored.CreditorAccount);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_NewDebtorAccount_CreatesNewRow()
+    {
+        using var ctx = CreateContext();
+        var repo = new TransactionsRepository();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(
+                        transactionId: "tx-1",
+                        internalTransactionId: "internal-1",
+                        debtorIban: "DE89370400440532013000",
+                        debtorBban: "370400440532013000")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        Assert.Single(ctx.DebtorAccounts);
+        var stored = ctx.Transactions.Single();
+        AccountAssertions.AssertEqual("DE89370400440532013000", "370400440532013000", stored.DebtorAccount);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_ExistingDebtorAccount_DiscardsChangeAndReusesRow()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var existingDebtor = new DebtorAccountDao
+        {
+            Iban = "DE89370400440532013000",
+            Bban = "original-bban"
+        };
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, bankAccountId, "tx-1", "internal-1",
+            DateTime.Parse("2024-01-15"), debtorAccount: existingDebtor));
+        await ctx.SaveChangesAsync();
+        var seededDebtorId = existingDebtor.Id;
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(
+                        transactionId: "tx-1",
+                        internalTransactionId: "internal-1",
+                        debtorIban: "DE89370400440532013000",
+                        debtorBban: "changed-bban")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var storedDebtor = ctx.DebtorAccounts.Single();
+        Assert.Equal(seededDebtorId, storedDebtor.Id);
+        Assert.Equal("original-bban", storedDebtor.Bban);
+        var stored = ctx.Transactions.Single();
+        Assert.Equal(seededDebtorId, stored.DebtorAccount!.Id);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_OnlyTransactionIdWithoutInternalId_StoresRow()
+    {
+        using var ctx = CreateContext();
+        var repo = new TransactionsRepository();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-9", internalTransactionId: "")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var stored = Assert.Single(ctx.Transactions);
+        Assert.Equal("tx-9", stored.Id);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_MissingTransactionIdAndInternalId_DiscardsTransaction()
+    {
+        using var ctx = CreateContext();
+        var repo = new TransactionsRepository();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: null, internalTransactionId: "")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        Assert.Empty(ctx.Transactions);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_ExistingTransactionMatchedByTransactionId_UpdatesRow()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        ctx.Transactions.Add(CreateSeedTransaction(
+            userId, bankAccountId, "tx-9", "",
+            DateTime.Parse("2024-01-15")));
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-9", internalTransactionId: "", amount: "200.00")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        var stored = Assert.Single(ctx.Transactions);
+        Assert.Equal("200.00", stored.Amount);
+    }
+
+    [Fact]
+    public async Task StoreTransactions_DuplicateInternalTransactionIdWithinBatch_StoresSingleRow()
+    {
+        using var ctx = CreateContext();
+        var repo = new TransactionsRepository();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        var transactions = new Transactions
+        {
+            BankTransactions = new BankTransactions
+            {
+                Booked = new List<Booked>
+                {
+                    CreateBooked(transactionId: "tx-1", internalTransactionId: "duplicate-1"),
+                    CreateBooked(transactionId: "tx-2", internalTransactionId: "duplicate-1")
+                }
+            }
+        };
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        Assert.Single(ctx.Transactions);
     }
 }

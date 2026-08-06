@@ -15,6 +15,7 @@ public class BankoDbContext : DbContext
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<ExpenseTag> ExpenseTag { get; set; }
     public DbSet<DebtorAccount> DebtorAccounts { get; set; }
+    public DbSet<CreditorAccount> CreditorAccounts { get; set; }
     public DbSet<BankAccount> BankAccounts { get; set; }
     public DbSet<BankAuthorization> BankAuthorizations { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
