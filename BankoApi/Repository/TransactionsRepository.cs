@@ -14,10 +14,80 @@ using DebtorAccountDao = BankoApi.Data.Dao.DebtorAccount;
 
 public class TransactionsRepository
 {
+    private const int SaveBatchSize = 200;
+
     public async Task StoreTransactions(BankoDbContext ctx, Guid userId, Guid bankAccountId, Transactions transactions)
     {
-        await UpdateExistingTransactions(ctx, userId, transactions, bankAccountId);
-        await ctx.SaveChangesAsync();
+        var booked = transactions.BankTransactions.Booked;
+        if (booked.Count == 0) return;
+
+        var oldestBookingDate = booked.Min(t => DateTime.Parse(t.BookingDate));
+
+        var existingTransactions = await ctx.Transactions
+            .Where(t => t.UserId == userId
+                && t.BankAccountId == bankAccountId
+                && t.BookingDate >= oldestBookingDate.AddDays(-1))
+            .ToListAsync();
+
+        var existingByKey = new Dictionary<string, Transaction>();
+        foreach (var transaction in existingTransactions)
+        {
+            existingByKey.TryAdd(GetMatchKey(transaction), transaction);
+        }
+
+        var creditorByIban = new Dictionary<string, CreditorAccountDao>();
+        var debtorByIban = new Dictionary<string, DebtorAccountDao>();
+        var seenKeys = new HashSet<string>();
+        var pendingTransactions = new List<Transaction>();
+
+        foreach (var newTransaction in booked)
+        {
+            string? id = newTransaction.TransactionId;
+            if (string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(newTransaction.InternalTransactionId))
+                id = Guid.NewGuid().ToString();
+
+            if (string.IsNullOrEmpty(id) && string.IsNullOrEmpty(newTransaction.InternalTransactionId))
+                continue;
+
+            var key = GetMatchKey(newTransaction, id!);
+            if (!seenKeys.Add(key)) continue;
+
+            if (existingByKey.TryGetValue(key, out var existingTransaction))
+            {
+                UpdateTransactionData(ctx, existingTransaction, newTransaction, creditorByIban, debtorByIban);
+            }
+            else
+            {
+                pendingTransactions.Add(
+                    CreateNewTransaction(ctx, userId, newTransaction, bankAccountId, id!, creditorByIban, debtorByIban));
+            }
+        }
+
+        await SaveInBatches(ctx, pendingTransactions);
+    }
+
+    private static string GetMatchKey(Transaction transaction)
+    {
+        return string.IsNullOrEmpty(transaction.InternalTransactionId)
+            ? transaction.Id
+            : transaction.InternalTransactionId;
+    }
+
+    private static string GetMatchKey(Booked booked, string id)
+    {
+        return string.IsNullOrEmpty(booked.InternalTransactionId)
+            ? id
+            : booked.InternalTransactionId;
+    }
+
+    private async Task SaveInBatches(BankoDbContext ctx, List<Transaction> pendingTransactions)
+    {
+        for (var i = 0; i < pendingTransactions.Count; i += SaveBatchSize)
+        {
+            var batch = pendingTransactions.Skip(i).Take(SaveBatchSize);
+            ctx.Transactions.AddRange(batch);
+            await ctx.SaveChangesAsync();
+        }
     }
 
     public void SetEuaExpirationStatus(BankoDbContext dbContext, String message)
@@ -37,33 +107,12 @@ public class TransactionsRepository
         return match.Success ? match.Value : throw new EndUserAgreementException(FetchAndStoreTransactionResponse.AgreementIdNotFound.ToString());
     }
 
-    private async Task UpdateExistingTransactions(BankoDbContext ctx, Guid userId, Transactions transactions, Guid bankAccountId)
-    {
-        foreach (var newTransaction in transactions.BankTransactions.Booked)
-        {
-            if (string.IsNullOrEmpty(newTransaction.TransactionId))
-            {
-                newTransaction.TransactionId = Guid.NewGuid().ToString();
-            }
-
-            if (!string.IsNullOrEmpty(newTransaction.InternalTransactionId))
-            {
-                var existingTransaction = await ctx.Transactions
-                    .FirstOrDefaultAsync(t => t.InternalTransactionId == newTransaction.InternalTransactionId);
-                
-                if (existingTransaction != null)
-                {
-                    UpdateTransactionData(ctx, existingTransaction, newTransaction);
-                }
-                else
-                {
-                    CreateNewTransaction(ctx, userId, newTransaction, bankAccountId);
-                }
-            }
-        }
-    }
-
-    private void UpdateTransactionData(BankoDbContext ctx, Transaction existingTransaction, Booked newTransaction)
+    private void UpdateTransactionData(
+        BankoDbContext ctx,
+        Transaction existingTransaction,
+        Booked newTransaction,
+        Dictionary<string, CreditorAccountDao> creditorByIban,
+        Dictionary<string, DebtorAccountDao> debtorByIban)
     {
         existingTransaction.BookingDate = DateTime.Parse(newTransaction.BookingDate);
         existingTransaction.ValueDate = DateTime.Parse(newTransaction.ValueDate);
@@ -79,24 +128,27 @@ public class TransactionsRepository
 
         if (newTransaction.DebtorAccount != null)
         {
-            existingTransaction.DebtorAccount = GetOrCreateDebtorAccount(ctx, newTransaction.DebtorAccount);
+            existingTransaction.DebtorAccount = GetOrCreateDebtorAccount(ctx, newTransaction.DebtorAccount, debtorByIban);
         }
 
         if (newTransaction.CreditorAccount != null)
         {
-            existingTransaction.CreditorAccount = new CreditorAccountDao
-            {
-                Bban = newTransaction.CreditorAccount.Bban,
-                Iban = newTransaction.CreditorAccount.Iban
-            };
+            existingTransaction.CreditorAccount = GetOrCreateCreditorAccount(ctx, newTransaction.CreditorAccount, creditorByIban);
         }
     }
 
-    private void CreateNewTransaction(BankoDbContext ctx, Guid userId, Booked newTransaction, Guid bankAccountId)
+    private Transaction CreateNewTransaction(
+        BankoDbContext ctx,
+        Guid userId,
+        Booked newTransaction,
+        Guid bankAccountId,
+        string id,
+        Dictionary<string, CreditorAccountDao> creditorByIban,
+        Dictionary<string, DebtorAccountDao> debtorByIban)
     {
         var transaction = new Transaction
         {
-            Id = newTransaction.TransactionId!,
+            Id = id,
             UserId = userId,
             BankAccountId = bankAccountId,
             BookingDate = DateTime.Parse(newTransaction.BookingDate),
@@ -117,33 +169,58 @@ public class TransactionsRepository
 
         if (newTransaction.DebtorAccount != null)
         {
-            transaction.DebtorAccount = GetOrCreateDebtorAccount(ctx, newTransaction.DebtorAccount);
+            transaction.DebtorAccount = GetOrCreateDebtorAccount(ctx, newTransaction.DebtorAccount, debtorByIban);
         }
 
         if (newTransaction.CreditorAccount != null)
         {
-            transaction.CreditorAccount = new CreditorAccountDao
-            {
-                Bban = newTransaction.CreditorAccount.Bban,
-                Iban = newTransaction.CreditorAccount.Iban
-            };
+            transaction.CreditorAccount = GetOrCreateCreditorAccount(ctx, newTransaction.CreditorAccount, creditorByIban);
         }
 
-        ctx.Transactions.Add(transaction);
+        return transaction;
     }
 
-    private BankoApi.Data.Dao.DebtorAccount GetOrCreateDebtorAccount(BankoDbContext ctx, BankoApi.Services.Model.DebtorAccount debtorAccount)
+    private BankoApi.Data.Dao.DebtorAccount GetOrCreateDebtorAccount(
+        BankoDbContext ctx,
+        BankoApi.Services.Model.DebtorAccount debtorAccount,
+        Dictionary<string, BankoApi.Data.Dao.DebtorAccount> debtorByIban)
     {
+        if (debtorByIban.TryGetValue(debtorAccount.Iban, out var cached)) return cached;
+
         var existingAccount = ctx.DebtorAccounts.FirstOrDefault(it => it.Iban == debtorAccount.Iban);
-        if (existingAccount != null) return existingAccount;
-
-        var newAccount = new BankoApi.Data.Dao.DebtorAccount
+        if (existingAccount == null)
         {
-            Bban = debtorAccount.Bban,
-            Iban = debtorAccount.Iban
-        };
+            existingAccount = new BankoApi.Data.Dao.DebtorAccount
+            {
+                Bban = debtorAccount.Bban,
+                Iban = debtorAccount.Iban
+            };
+            ctx.DebtorAccounts.Add(existingAccount);
+        }
 
-        ctx.DebtorAccounts.Add(newAccount);
-        return newAccount;
+        debtorByIban[debtorAccount.Iban] = existingAccount;
+        return existingAccount;
+    }
+
+    private BankoApi.Data.Dao.CreditorAccount GetOrCreateCreditorAccount(
+        BankoDbContext ctx,
+        BankoApi.Services.Model.CreditorAccount creditorAccount,
+        Dictionary<string, BankoApi.Data.Dao.CreditorAccount> creditorByIban)
+    {
+        if (creditorByIban.TryGetValue(creditorAccount.Iban, out var cached)) return cached;
+
+        var existingAccount = ctx.CreditorAccounts.FirstOrDefault(it => it.Iban == creditorAccount.Iban);
+        if (existingAccount == null)
+        {
+            existingAccount = new BankoApi.Data.Dao.CreditorAccount
+            {
+                Bban = creditorAccount.Bban,
+                Iban = creditorAccount.Iban
+            };
+            ctx.CreditorAccounts.Add(existingAccount);
+        }
+
+        creditorByIban[creditorAccount.Iban] = existingAccount;
+        return existingAccount;
     }
 }

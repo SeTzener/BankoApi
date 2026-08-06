@@ -10,11 +10,13 @@ public class GoCardlessService
 {
     private const int MaxRetries = 3;
     private static readonly TimeSpan RetryBaseDelay = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
     private static readonly HashSet<HttpStatusCode> TransientStatusCodes = new()
     {
         HttpStatusCode.BadGateway,
         HttpStatusCode.ServiceUnavailable,
-        HttpStatusCode.GatewayTimeout
+        HttpStatusCode.GatewayTimeout,
+        HttpStatusCode.TooManyRequests
     };
 
     private readonly HttpClient _httpClient;
@@ -37,13 +39,24 @@ public class GoCardlessService
             if (!TransientStatusCodes.Contains(response.StatusCode) || attempt == MaxRetries)
                 return response;
 
-            var delay = RetryBaseDelay * attempt;
+            var delay = GetRetryDelay(response, attempt);
             _logger.LogWarning("GoCardless returned {StatusCode}; retrying in {Delay} (attempt {Attempt}/{MaxRetries})",
                 response.StatusCode, delay, attempt, MaxRetries);
             await Task.Delay(delay);
         }
 
         throw new InvalidOperationException("Retry loop terminated without returning a response");
+    }
+
+    private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
+    {
+        if (response.StatusCode == HttpStatusCode.TooManyRequests
+            && response.Headers.RetryAfter?.Delta is { } retryAfter)
+        {
+            return retryAfter > MaxRetryDelay ? MaxRetryDelay : retryAfter;
+        }
+
+        return RetryBaseDelay * attempt;
     }
 
     // TODO():Change this Transactions from DAO to a Model dto
