@@ -11,10 +11,10 @@ namespace BankoApi.Tests.Services;
 
 public class TokenServiceTests
 {
-    private BankoDbContext CreateContext()
+    private BankoDbContext CreateContext(string? dbName = null)
     {
         var options = new DbContextOptionsBuilder<BankoDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(dbName ?? Guid.NewGuid().ToString())
             .Options;
         return new BankoDbContext(options);
     }
@@ -28,7 +28,8 @@ public class TokenServiceTests
                 ["Jwt:Issuer"] = "TestIssuer",
                 ["Jwt:Audience"] = "TestAudience",
                 ["Jwt:AccessTokenExpirationMinutes"] = "15",
-                ["Jwt:RefreshTokenExpirationDays"] = "7"
+                ["Jwt:RefreshTokenExpirationDays"] = "7",
+                ["Jwt:RefreshReuseGraceSeconds"] = "300"
             })!
             .Build();
     }
@@ -107,6 +108,125 @@ public class TokenServiceTests
         var oldToken = ctx.RefreshTokens.FirstOrDefault(rt => rt.Token == originalRefresh);
         Assert.NotNull(oldToken);
         Assert.True(oldToken.IsUsed);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_RotationRecordsUsedAtAndReplacement()
+    {
+        using var ctx = CreateContext();
+        var config = CreateConfig();
+        var service = new TokenService(config, ctx);
+        var user = CreateUser(ctx);
+        var (_, originalRefresh, _) = await service.GenerateTokensAsync(user);
+
+        var (_, _, newRefresh, _) = await service.RefreshTokenAsync(originalRefresh);
+
+        var oldToken = ctx.RefreshTokens.First(rt => rt.Token == originalRefresh);
+        var newToken = ctx.RefreshTokens.First(rt => rt.Token == newRefresh);
+
+        Assert.True(oldToken.IsUsed);
+        Assert.NotNull(oldToken.UsedAt);
+        Assert.Equal(newToken.Id, oldToken.ReplacedByTokenId);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_ReplayWithinGrace_HealsSession()
+    {
+        using var ctx = CreateContext();
+        var config = CreateConfig();
+        var service = new TokenService(config, ctx);
+        var user = CreateUser(ctx);
+        var (_, originalRefresh, _) = await service.GenerateTokensAsync(user);
+
+        await service.RefreshTokenAsync(originalRefresh);
+
+        var (userId, accessToken, refreshToken, expiresIn) = await service.RefreshTokenAsync(originalRefresh);
+
+        Assert.Equal(user.UserId, userId);
+        Assert.NotEmpty(accessToken);
+        Assert.NotEmpty(refreshToken);
+        Assert.Equal(900L, expiresIn);
+
+        var refreshedToken = await service.RefreshTokenAsync(refreshToken);
+        Assert.Equal(user.UserId, refreshedToken.userId);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_ReplayAfterGrace_ThrowsAndRevokes()
+    {
+        using var ctx = CreateContext();
+        var config = CreateConfig();
+        var service = new TokenService(config, ctx);
+        var user = CreateUser(ctx);
+        var (_, originalRefresh, _) = await service.GenerateTokensAsync(user);
+
+        await service.RefreshTokenAsync(originalRefresh);
+
+        var usedToken = ctx.RefreshTokens.First(rt => rt.Token == originalRefresh);
+        usedToken.UsedAt = DateTime.UtcNow.AddMinutes(-10);
+        ctx.SaveChanges();
+
+        await Assert.ThrowsAsync<SecurityTokenException>(() =>
+            service.RefreshTokenAsync(originalRefresh));
+
+        var revokedToken = ctx.RefreshTokens.First(rt => rt.Token == originalRefresh);
+        Assert.True(revokedToken.IsRevoked);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_ReplayWhenChainEndUsed_ReturnsCurrentToken()
+    {
+        using var ctx = CreateContext();
+        var config = CreateConfig();
+        var service = new TokenService(config, ctx);
+        var user = CreateUser(ctx);
+        var (_, originalRefresh, _) = await service.GenerateTokensAsync(user);
+
+        var (_, _, secondRefresh, _) = await service.RefreshTokenAsync(originalRefresh);
+
+        var chainEnd = ctx.RefreshTokens.First(rt => rt.Token == secondRefresh);
+        chainEnd.IsUsed = true;
+        chainEnd.UsedAt = DateTime.UtcNow;
+        ctx.SaveChanges();
+
+        var (userId, accessToken, refreshToken, _) = await service.RefreshTokenAsync(originalRefresh);
+
+        Assert.Equal(user.UserId, userId);
+        Assert.NotEmpty(accessToken);
+        Assert.Equal(secondRefresh, refreshToken);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_ConcurrentRefreshes_DoNotKillSession()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        string originalRefresh;
+        Guid userId;
+
+        using (var setupCtx = CreateContext(dbName))
+        {
+            var setupService = new TokenService(CreateConfig(), setupCtx);
+            var user = CreateUser(setupCtx);
+            userId = user.UserId;
+            var (_, refresh, _) = await setupService.GenerateTokensAsync(user);
+            originalRefresh = refresh;
+        }
+
+        using var ctxA = CreateContext(dbName);
+        using var ctxB = CreateContext(dbName);
+        var serviceA = new TokenService(CreateConfig(), ctxA);
+        var serviceB = new TokenService(CreateConfig(), ctxB);
+
+        var taskA = serviceA.RefreshTokenAsync(originalRefresh);
+        var taskB = serviceB.RefreshTokenAsync(originalRefresh);
+        var results = await Task.WhenAll(taskA, taskB);
+
+        Assert.Equal(userId, results[0].userId);
+        Assert.Equal(userId, results[1].userId);
+        Assert.NotEmpty(results[0].accessToken);
+        Assert.NotEmpty(results[1].accessToken);
+        Assert.NotEmpty(results[0].refreshToken);
+        Assert.NotEmpty(results[1].refreshToken);
     }
 
     [Fact]

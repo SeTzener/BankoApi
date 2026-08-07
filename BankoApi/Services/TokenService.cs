@@ -21,7 +21,15 @@ public class TokenService
         _context = context;
     }
 
+    private const int MaxReuseChainDepth = 5;
+
     public virtual async Task<(string accessToken, string refreshToken, long expiresIn)> GenerateTokensAsync(User user)
+    {
+        var (accessToken, refreshToken, expiresIn, _) = await CreateTokenPairAsync(user);
+        return (accessToken, refreshToken, expiresIn);
+    }
+
+    private async Task<(string accessToken, string refreshToken, long expiresIn, RefreshToken refreshTokenEntity)> CreateTokenPairAsync(User user)
     {
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
@@ -42,7 +50,7 @@ public class TokenService
         _context.RefreshTokens.Add(refreshTokenEntity);
         await _context.SaveChangesAsync();
 
-        return (accessToken, refreshToken, expiresIn);
+        return (accessToken, refreshToken, expiresIn, refreshTokenEntity);
     }
 
     public async Task<(Guid userId, string accessToken, string refreshToken, long expiresIn)> RefreshTokenAsync(string oldRefreshToken)
@@ -57,19 +65,98 @@ public class TokenService
         if (storedToken.IsRevoked)
             throw new SecurityTokenException("Refresh token is revoked");
 
-        if (storedToken.IsUsed)
-        {
-            RevokeSingleToken(storedToken);
-            throw new SecurityTokenException("Refresh token is already used — possible token reuse detected");
-        }
-
         if (storedToken.ExpiresAt < DateTime.UtcNow)
             throw new SecurityTokenException("Refresh token has expired");
 
-        return await ExecuteRefreshTransactionAsync(storedToken);
+        if (storedToken.IsUsed)
+            return await HandleUsedTokenAsync(storedToken);
+
+        try
+        {
+            return await RotateRefreshTokenAsync(storedToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            var refreshed = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Token == oldRefreshToken);
+
+            if (refreshed == null || !refreshed.IsUsed)
+                throw new SecurityTokenException("Refresh token could not be rotated");
+
+            return await HandleUsedTokenAsync(refreshed);
+        }
     }
 
-    private async Task<(Guid userId, string accessToken, string refreshToken, long expiresIn)> ExecuteRefreshTransactionAsync(RefreshToken storedToken)
+    private async Task<(Guid userId, string accessToken, string refreshToken, long expiresIn)> HandleUsedTokenAsync(RefreshToken usedToken)
+    {
+        if (!IsWithinReuseGrace(usedToken))
+        {
+            RevokeSingleToken(usedToken);
+            throw new SecurityTokenException("Refresh token is already used — possible token reuse detected");
+        }
+
+        try
+        {
+            var newest = await ResolveNewestTokenAsync(usedToken);
+
+            if (newest == null || newest.IsRevoked || newest.ExpiresAt < DateTime.UtcNow)
+            {
+                RevokeSingleToken(usedToken);
+                throw new SecurityTokenException("Refresh token reuse detected outside a valid token chain");
+            }
+
+            if (newest.IsUsed && newest.Id == usedToken.Id)
+            {
+                RevokeSingleToken(usedToken);
+                throw new SecurityTokenException("Refresh token reuse detected without a replacement token");
+            }
+
+            if (newest.IsUsed)
+            {
+                // Another request already rotated the chain end; hand back the current valid pair.
+                var accessToken = GenerateAccessToken(newest.User);
+                return (newest.UserId, accessToken, newest.Token, GetAccessTokenExpirationMinutes() * 60L);
+            }
+
+            return await RotateRefreshTokenAsync(newest);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            var reResolved = await ResolveNewestTokenAsync(usedToken);
+            if (reResolved == null || reResolved.IsUsed || reResolved.IsRevoked || reResolved.ExpiresAt < DateTime.UtcNow)
+                throw new SecurityTokenException("Refresh token reuse detected");
+
+            var accessToken = GenerateAccessToken(reResolved.User);
+            return (reResolved.UserId, accessToken, reResolved.Token, GetAccessTokenExpirationMinutes() * 60L);
+        }
+    }
+
+    private bool IsWithinReuseGrace(RefreshToken usedToken)
+    {
+        if (usedToken.UsedAt == null) return false;
+        return DateTime.UtcNow - usedToken.UsedAt.Value <= TimeSpan.FromSeconds(GetRefreshReuseGraceSeconds());
+    }
+
+    private async Task<RefreshToken?> ResolveNewestTokenAsync(RefreshToken token)
+    {
+        var current = token;
+        for (var hop = 0; hop < MaxReuseChainDepth; hop++)
+        {
+            if (current.ReplacedByTokenId == null) return current;
+
+            var next = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Id == current.ReplacedByTokenId);
+
+            if (next == null) return current;
+            current = next;
+        }
+
+        return current;
+    }
+
+    private async Task<(Guid userId, string accessToken, string refreshToken, long expiresIn)> RotateRefreshTokenAsync(RefreshToken storedToken)
     {
         var executionStrategy = _context.Database.CreateExecutionStrategy();
         return await executionStrategy.ExecuteAsync(async () =>
@@ -77,12 +164,19 @@ public class TokenService
             await using var transaction = await TryBeginTransactionAsync();
 
             storedToken.IsUsed = true;
+            storedToken.UsedAt = DateTime.UtcNow;
             _context.RefreshTokens.Update(storedToken);
             await _context.SaveChangesAsync();
 
             try
             {
-                var (accessToken, newRefreshToken, expiresIn) = await GenerateTokensAsync(storedToken.User);
+                var (accessToken, newRefreshToken, expiresIn, newRefreshTokenEntity) =
+                    await CreateTokenPairAsync(storedToken.User);
+
+                storedToken.ReplacedByTokenId = newRefreshTokenEntity.Id;
+                _context.RefreshTokens.Update(storedToken);
+                await _context.SaveChangesAsync();
+
                 if (transaction != null) await transaction.CommitAsync();
                 return (storedToken.UserId, accessToken, newRefreshToken, expiresIn);
             }
@@ -176,6 +270,13 @@ public class TokenService
         return int.TryParse(_configuration["Jwt:RefreshTokenExpirationDays"], out var days)
             ? days
             : 7;
+    }
+
+    private int GetRefreshReuseGraceSeconds()
+    {
+        return int.TryParse(_configuration["Jwt:RefreshReuseGraceSeconds"], out var seconds)
+            ? seconds
+            : 300;
     }
 
     private void RevokeSingleToken(RefreshToken token)
