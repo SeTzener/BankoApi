@@ -91,6 +91,8 @@ public class BankoDbContext : DbContext
         {
             entity.HasIndex(rt => rt.Token).IsUnique();
 
+            entity.HasIndex(rt => rt.ReplacedByTokenId);
+
             entity.Property(rt => rt.RowVersion).IsRowVersion();
 
             entity.HasOne(rt => rt.User)

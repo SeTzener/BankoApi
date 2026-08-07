@@ -16,6 +16,10 @@ public class RefreshToken
 
     [Required] public bool IsUsed { get; set; }
 
+    public DateTime? UsedAt { get; set; }
+
+    public Guid? ReplacedByTokenId { get; set; }
+
     [Required] public bool IsRevoked { get; set; }
 
     [Timestamp]
