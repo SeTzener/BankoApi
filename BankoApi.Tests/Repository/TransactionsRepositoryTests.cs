@@ -154,6 +154,43 @@ public class TransactionsRepositoryTests
     }
 
     [Fact]
+    public async Task StoreTransactions_SoftDeletedTransaction_PreservesDeletionOnRefetch()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var bankAccountId = Guid.NewGuid();
+        ctx.Transactions.Add(new Transaction
+        {
+            Id = "existing-tx",
+            UserId = userId,
+            BankAccountId = bankAccountId,
+            BookingDate = DateTime.UtcNow,
+            ValueDate = DateTime.UtcNow,
+            Amount = "50.00",
+            Currency = "EUR",
+            RemittanceInformationUnstructured = "Existing",
+            RemittanceInformationUnstructuredArray = new List<string> { "Existing" },
+            InternalTransactionId = "internal-1",
+            isDeleted = true
+        });
+        await ctx.SaveChangesAsync();
+
+        var repo = new TransactionsRepository();
+        var transactions = CreateSampleTransactions();
+
+        await repo.StoreTransactions(ctx, userId, bankAccountId, transactions);
+        await ctx.SaveChangesAsync();
+
+        // Refetch must not resurrect a user-deleted transaction, nor insert a duplicate row.
+        Assert.Equal(2, ctx.Transactions.Count());
+        Assert.Single(ctx.Transactions, t => t.InternalTransactionId == "internal-1");
+        var updated = ctx.Transactions.Single(t => t.InternalTransactionId == "internal-1");
+        Assert.Equal("existing-tx", updated.Id);
+        Assert.Equal("100.00", updated.Amount);
+        Assert.True(updated.isDeleted);
+    }
+
+    [Fact]
     public async Task StoreTransactions_EmptyTransactionId_GeneratesNewGuid()
     {
         using var ctx = CreateContext();

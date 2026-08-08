@@ -198,7 +198,6 @@ public class TransactionsRepository
         existingTransaction.CreditorName = newTransaction.CreditorName;
         existingTransaction.DebtorName = newTransaction.DebtorName;
         existingTransaction.RemittanceInformationStructuredArray = newTransaction.RemittanceInformationStructuredArray;
-        existingTransaction.isDeleted = false;
 
         if (newTransaction.DebtorAccount != null)
         {
