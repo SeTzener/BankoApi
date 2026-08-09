@@ -98,6 +98,17 @@ This file gives an AI agent a quick overview of where the Banko project code liv
 
 ---
 
+## Known Invariants
+
+### Transaction soft-delete must survive refetches
+
+* `TransactionsRepository.UpdateTransactionData` must never modify `isDeleted`.
+* GoCardless sometimes returns the same transaction twice (once with `transactionId`, once without, with a different `internalTransactionId`). Users resolve these duplicates by soft-deleting them in the app.
+* A refetch that matches an existing transaction must preserve the user's deletion. Resetting `isDeleted = false` on the update path resurrects deleted duplicates on the next sync.
+* Guarded by the regression test `StoreTransactions_SoftDeletedTransaction_PreservesDeletionOnRefetch` and the `isDeleted`-preservation assertions in the transactionId and outside-window match tests.
+
+---
+
 ## Pull Request Format
 
 When creating a Pull Request description, always use the following structure:
