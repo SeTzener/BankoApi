@@ -301,7 +301,8 @@ public class TransactionsRepositoryTests
         string internalTransactionId,
         DateTime bookingDate,
         CreditorAccountDao? creditorAccount = null,
-        DebtorAccountDao? debtorAccount = null)
+        DebtorAccountDao? debtorAccount = null,
+        bool isDeleted = false)
     {
         return new Transaction
         {
@@ -317,7 +318,7 @@ public class TransactionsRepositoryTests
             InternalTransactionId = internalTransactionId,
             CreditorAccount = creditorAccount,
             DebtorAccount = debtorAccount,
-            isDeleted = false
+            isDeleted = isDeleted
         };
     }
 
@@ -560,7 +561,7 @@ public class TransactionsRepositoryTests
         var bankAccountId = Guid.NewGuid();
         ctx.Transactions.Add(CreateSeedTransaction(
             userId, bankAccountId, "tx-9", "",
-            DateTime.Parse("2024-01-15")));
+            DateTime.Parse("2024-01-15"), isDeleted: true));
         await ctx.SaveChangesAsync();
 
         var repo = new TransactionsRepository();
@@ -580,6 +581,7 @@ public class TransactionsRepositoryTests
 
         var stored = Assert.Single(ctx.Transactions);
         Assert.Equal("200.00", stored.Amount);
+        Assert.True(stored.isDeleted);
     }
 
     [Fact]
@@ -621,7 +623,7 @@ public class TransactionsRepositoryTests
         var bankAccountId = Guid.NewGuid();
         ctx.Transactions.Add(CreateSeedTransaction(
             userId, bankAccountId, "tx-old", "",
-            DateTime.Parse("2020-01-01")));
+            DateTime.Parse("2020-01-01"), isDeleted: true));
         await ctx.SaveChangesAsync();
 
         var repo = new TransactionsRepository();
@@ -642,6 +644,7 @@ public class TransactionsRepositoryTests
         var stored = Assert.Single(ctx.Transactions);
         Assert.Equal("200.00", stored.Amount);
         Assert.Equal("internal-new", stored.InternalTransactionId);
+        Assert.True(stored.isDeleted);
     }
 
     [Fact]

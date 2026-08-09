@@ -199,6 +199,9 @@ public class TransactionsRepository
         existingTransaction.DebtorName = newTransaction.DebtorName;
         existingTransaction.RemittanceInformationStructuredArray = newTransaction.RemittanceInformationStructuredArray;
 
+        // Deliberately do NOT modify existingTransaction.isDeleted here: a refetch matching a
+        // transaction the user soft-deleted must keep it deleted (GoCardless duplicate pairs).
+
         if (newTransaction.DebtorAccount != null)
         {
             existingTransaction.DebtorAccount = GetOrCreateDebtorAccount(ctx, newTransaction.DebtorAccount, debtorByIban);
