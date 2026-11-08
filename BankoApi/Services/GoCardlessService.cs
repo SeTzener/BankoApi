@@ -127,6 +127,18 @@ public class GoCardlessService
         return mentionsAgreement && text.Contains("expired", StringComparison.OrdinalIgnoreCase);
     }
 
+    public async Task<EndUserAgreement?> GetEndUserAgreementAsync(string agreementId)
+    {
+        var token = await _tokenService.GetAccessTokenAsync();
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync($"agreements/enduser/{agreementId}/"));
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<EndUserAgreement>();
+    }
+
     public async Task<PaginatedEndUserAgreements> GetEndUserAgreement()
     {
         // TODO: Token MUST be loaded from the DB

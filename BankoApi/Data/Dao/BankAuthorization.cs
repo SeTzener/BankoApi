@@ -33,6 +33,13 @@ public class BankAuthorization
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // EUA lifecycle. AgreementExpiresAt is the source of truth for renewal warnings.
+    public DateTime? AgreementCreatedAt { get; set; }
+    public DateTime? AgreementAcceptedAt { get; set; }
+    public DateTime? AgreementExpiresAt { get; set; }
+    public int? AccessValidForDays { get; set; }
+    public DateTime? LastStatusCheckAt { get; set; }
+
     // Navigation Properties
     [ForeignKey("UserId")]
     public virtual User User { get; set; }
