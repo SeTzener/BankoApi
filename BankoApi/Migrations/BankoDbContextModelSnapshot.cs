@@ -340,6 +340,50 @@ namespace BankoApi.Migrations
                     b.ToTable("PrivacyPolicyVersions");
                 });
 
+            modelBuilder.Entity("BankoApi.Data.Dao.PushDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("idx_push_devices_user_id");
+
+                    b.ToTable("PushDevices");
+                });
+
             modelBuilder.Entity("BankoApi.Data.Dao.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -579,6 +623,17 @@ namespace BankoApi.Migrations
                         .IsRequired();
 
                     b.Navigation("PrivacyPolicyVersion");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BankoApi.Data.Dao.PushDevice", b =>
+                {
+                    b.HasOne("BankoApi.Data.Dao.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
