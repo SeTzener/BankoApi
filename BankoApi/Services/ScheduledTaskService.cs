@@ -101,17 +101,14 @@ public class ScheduledTaskService : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<BankoDbContext>();
+        var repository = scope.ServiceProvider.GetRequiredService<BankAuthorizationRepository>();
 
         var threshold = DateTime.UtcNow.AddHours(-24);
-        var staleAuthorizations = await dbContext.BankAuthorizations
-            .Where(ba => ba.Status == BankAuthorizationStaus.Processing && ba.CreatedAt < threshold)
-            .ToListAsync();
+        var removed = await repository.DeleteStaleProcessingAuthorizations(dbContext, threshold);
 
-        if (staleAuthorizations.Count > 0)
+        if (removed > 0)
         {
-            dbContext.BankAuthorizations.RemoveRange(staleAuthorizations);
-            await dbContext.SaveChangesAsync();
-            _logger.LogInformation("Cleaned up {Count} stale processing authorizations", staleAuthorizations.Count);
+            _logger.LogInformation("Cleaned up {Count} stale processing authorizations", removed);
         }
     }
 }
