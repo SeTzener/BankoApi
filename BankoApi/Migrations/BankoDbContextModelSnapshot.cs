@@ -81,6 +81,11 @@ namespace BankoApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("OwnerName")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
