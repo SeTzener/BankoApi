@@ -22,6 +22,7 @@ public class BankoDbContext : DbContext
     public DbSet<PrivacyPolicyVersion> PrivacyPolicyVersions { get; set; }
     public DbSet<ConsentLog> ConsentLogs { get; set; }
     public DbSet<Institution> Institutions { get; set; }
+    public DbSet<PushDevice> PushDevices { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -104,6 +105,27 @@ public class BankoDbContext : DbContext
         modelBuilder.Entity<PrivacyPolicyVersion>(entity =>
         {
             entity.HasIndex(p => p.Version).IsUnique();
+        });
+
+        modelBuilder.Entity<PushDevice>(entity =>
+        {
+            // An FCM token identifies one app installation, so it can only belong to one row.
+            entity.HasIndex(d => d.Token).IsUnique();
+
+            entity.HasIndex(d => d.UserId)
+                  .HasDatabaseName("idx_push_devices_user_id");
+
+            entity.HasOne(d => d.User)
+                  .WithMany()
+                  .HasForeignKey(d => d.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(d => d.Platform)
+                  .HasConversion<string>()
+                  .HasMaxLength(20);
+
+            entity.Property(d => d.IsActive)
+                  .HasDefaultValue(true);
         });
 
         modelBuilder.Entity<ConsentLog>(entity =>
