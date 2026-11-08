@@ -40,6 +40,11 @@ public class BankAuthorization
     public int? AccessValidForDays { get; set; }
     public DateTime? LastStatusCheckAt { get; set; }
 
+    // The expiry date a notification was already sent for. Storing the expiry instead
+    // of a boolean means a renewed agreement (new AgreementExpiresAt) is notified again.
+    public DateTime? ExpiryWarningNotifiedFor { get; set; }
+    public DateTime? ExpiryExpiredNotifiedFor { get; set; }
+
     // Navigation Properties
     [ForeignKey("UserId")]
     public virtual User User { get; set; }

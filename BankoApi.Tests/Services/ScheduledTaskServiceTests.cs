@@ -2,6 +2,7 @@ using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Repository;
 using BankoApi.Services;
+using BankoApi.Services.Push;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,13 @@ public class ScheduledTaskServiceTests
             .Returns(new TransactionsRepository());
         serviceProviderMock.Setup(x => x.GetService(typeof(BankAuthorizationRepository)))
             .Returns(new BankAuthorizationRepository());
+
+        var notificationServiceMock = new Mock<IEuaExpiryNotificationService>();
+        notificationServiceMock
+            .Setup(x => x.RunAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        serviceProviderMock.Setup(x => x.GetService(typeof(IEuaExpiryNotificationService)))
+            .Returns(notificationServiceMock.Object);
 
         var scopeMock = new Mock<IServiceScope>();
         scopeMock.Setup(x => x.ServiceProvider).Returns(serviceProviderMock.Object);

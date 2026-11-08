@@ -2,6 +2,7 @@ using BankoApi.Data;
 using BankoApi.Data.Dao;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Repository;
+using BankoApi.Services.Push;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -9,9 +10,6 @@ namespace BankoApi.Services;
 
 public class ScheduledTaskService : BackgroundService
 {
-    // TODO(push): add a daily EUA expiry step that sends a warning 7 days before
-    // AgreementExpiresAt and a notification when it expires.
-
     private readonly TimeSpan _executionTime = new(08, 00, 00);
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ScheduledTaskService> _logger;
@@ -53,7 +51,23 @@ public class ScheduledTaskService : BackgroundService
             {
                 _logger.LogError(ex, "Error occurred while cleaning up stale processing authorizations");
             }
+
+            try
+            {
+                await SendEuaExpiryNotifications();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while sending EUA expiry notifications");
+            }
         }
+    }
+
+    private async Task SendEuaExpiryNotifications()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var notificationService = scope.ServiceProvider.GetRequiredService<IEuaExpiryNotificationService>();
+        await notificationService.RunAsync(DateTime.UtcNow);
     }
 
     private async Task FetchAndStoreTransactions()
