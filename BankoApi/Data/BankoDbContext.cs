@@ -146,6 +146,10 @@ public class BankoDbContext : DbContext
             entity.HasIndex(e => e.UserId)
                   .HasDatabaseName("idx_bank_auth_user_id");
 
+            // Expiry queries drive renewal warnings and the notification job
+            entity.HasIndex(e => e.AgreementExpiresAt)
+                  .HasDatabaseName("idx_bank_auth_agreement_expires_at");
+
             // Define the relationship with User
             entity.HasOne(e => e.User)
                   .WithMany()

@@ -55,30 +55,43 @@ namespace BankoApi.Controllers.Settings
                 if (missingLogos.Count > 0)
                     await _dbContext.SaveChangesAsync();
 
+                var now = DateTime.UtcNow;
                 return Ok(new GetBankAuthorizationsResponse
                 {
-                    BankAuthorizations = result.ConvertAll(it => new BankAuth()
+                    BankAuthorizations = result.ConvertAll(it =>
                     {
-                        Id = it.Id,
-                        UserId = it.UserId,
-                        RequisitionId = it.RequisitionId,
-                        InstitutionId = it.InstitutionId,
-                        ReferenceId = it.ReferenceId,
-                        AgreementId = it.AgreementId,
-                        Status = it.Status,
-                        InstitutionName = it.InstitutionName,
-                        InstitutionLogoUrl = it.Institution?.LogoUrl,
-                        CreatedAt = it.CreatedAt,
-                        UpdatedAt = it.UpdatedAt,
-                        Accounts = it.BankAccounts?.Where(acc => acc.IsActive).ToList().ConvertAll(acc => new BankAccountSummary()
+                        var state = GetAuthorizationState(it, now);
+                        return new BankAuth()
                         {
-                            BankAccountId = acc.BankAccountId,
-                            Iban = acc.Iban,
-                            Currency = acc.Currency,
-                            OwnerName = acc.OwnerName,
-                            AccountName = acc.AccountName,
-                            Product = acc.Product
-                        }) ?? new List<BankAccountSummary>()
+                            Id = it.Id,
+                            UserId = it.UserId,
+                            RequisitionId = it.RequisitionId,
+                            InstitutionId = it.InstitutionId,
+                            ReferenceId = it.ReferenceId,
+                            AgreementId = it.AgreementId,
+                            Status = it.Status,
+                            InstitutionName = it.InstitutionName,
+                            InstitutionLogoUrl = it.Institution?.LogoUrl,
+                            CreatedAt = it.CreatedAt,
+                            UpdatedAt = it.UpdatedAt,
+                            ExpiresAt = it.AgreementExpiresAt,
+                            DaysUntilExpiry = it.AgreementExpiresAt.HasValue
+                                ? (int)Math.Ceiling((it.AgreementExpiresAt.Value - now).TotalDays)
+                                : null,
+                            AuthorizationState = state,
+                            RequiresReauthorization = state is BankAuthorizationState.ExpiringSoon
+                                or BankAuthorizationState.Expired
+                                or BankAuthorizationState.Error,
+                            Accounts = it.BankAccounts?.Where(acc => acc.IsActive).ToList().ConvertAll(acc => new BankAccountSummary()
+                            {
+                                BankAccountId = acc.BankAccountId,
+                                Iban = acc.Iban,
+                                Currency = acc.Currency,
+                                OwnerName = acc.OwnerName,
+                                AccountName = acc.AccountName,
+                                Product = acc.Product
+                            }) ?? new List<BankAccountSummary>()
+                        };
                     })
                 });
             }
@@ -202,6 +215,8 @@ namespace BankoApi.Controllers.Settings
             authorization.InstitutionId = institutionId;
             authorization.InstitutionName = gcInstitution?.Name;
             authorization.Status = BankAuthorizationStaus.Processing;
+            ApplyAgreementLifecycle(authorization, validEua);
+            authorization.LastStatusCheckAt = DateTime.UtcNow;
 
             if (authorization.Id == Guid.Empty)
                 _dbContext.BankAuthorizations.Add(authorization);
@@ -242,6 +257,14 @@ namespace BankoApi.Controllers.Settings
             // requisition was already fully processed.
             if (authorization.Status == BankAuthorizationStaus.Linked)
             {
+                // A replay may be the first chance to record the accepted EUA (e.g. the
+                // original response was lost after the bank accepted it).
+                if (authorization.AgreementAcceptedAt == null)
+                {
+                    await RefreshAgreementLifecycleAsync(authorization);
+                    await _dbContext.SaveChangesAsync();
+                }
+
                 return Ok(BuildCallbackResponse(authorization));
             }
 
@@ -318,11 +341,67 @@ namespace BankoApi.Controllers.Settings
                 removedAccount.UpdatedAt = DateTime.UtcNow;
             }
 
+            // The bank has accepted the agreement by now, so this is the first reliable
+            // point to record the accepted date and the expiry used for renewal warnings.
+            await RefreshAgreementLifecycleAsync(authorization);
+
             authorization.Status = BankAuthorizationStaus.Linked;
             authorization.UpdatedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync();
 
             return Ok(BuildCallbackResponse(authorization));
+        }
+
+        private const int ReauthorizationWarningDays = 7;
+
+        private static BankAuthorizationState GetAuthorizationState(BankAuthorization authorization, DateTime now)
+        {
+            if (authorization.Status == BankAuthorizationStaus.Error) return BankAuthorizationState.Error;
+            if (authorization.Status == BankAuthorizationStaus.Expired) return BankAuthorizationState.Expired;
+
+            // No known expiry yet (e.g. still processing its first link): nothing to renew.
+            if (!authorization.AgreementExpiresAt.HasValue) return BankAuthorizationState.Valid;
+
+            if (authorization.AgreementExpiresAt.Value <= now) return BankAuthorizationState.Expired;
+            if (authorization.AgreementExpiresAt.Value <= now.AddDays(ReauthorizationWarningDays))
+                return BankAuthorizationState.ExpiringSoon;
+
+            return BankAuthorizationState.Valid;
+        }
+
+        private static void ApplyAgreementLifecycle(BankAuthorization authorization, EndUserAgreement agreement)
+        {
+            authorization.AgreementCreatedAt = agreement.Created;
+            authorization.AgreementAcceptedAt = agreement.Accepted;
+            authorization.AccessValidForDays = agreement.AccessValidForDays;
+
+            // GoCardless measures access_valid_for_days from the agreement creation date.
+            authorization.AgreementExpiresAt = agreement.Created.AddDays(agreement.AccessValidForDays);
+        }
+
+        /// <summary>
+        /// Re-reads the agreement from GoCardless and stores its accepted/expiry dates.
+        /// Failures are logged instead of thrown: linking a requisition must not fail
+        /// because a secondary status lookup did.
+        /// </summary>
+        private async Task RefreshAgreementLifecycleAsync(BankAuthorization authorization)
+        {
+            authorization.LastStatusCheckAt = DateTime.UtcNow;
+
+            if (string.IsNullOrEmpty(authorization.AgreementId)) return;
+
+            try
+            {
+                var agreement = await _goCardlessService.GetEndUserAgreementAsync(authorization.AgreementId);
+                if (agreement != null)
+                {
+                    ApplyAgreementLifecycle(authorization, agreement);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to refresh EUA lifecycle for agreement {AgreementId}", authorization.AgreementId);
+            }
         }
 
         private static BankAuthCallbackResponse BuildCallbackResponse(BankAuthorization authorization)

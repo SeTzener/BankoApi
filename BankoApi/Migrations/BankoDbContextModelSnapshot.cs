@@ -114,6 +114,18 @@ namespace BankoApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("AccessValidForDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("AgreementAcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AgreementCreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AgreementExpiresAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("AgreementId")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -128,6 +140,9 @@ namespace BankoApi.Migrations
                     b.Property<string>("InstitutionName")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("LastStatusCheckAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ReferenceId")
                         .HasMaxLength(50)
@@ -149,6 +164,9 @@ namespace BankoApi.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AgreementExpiresAt")
+                        .HasDatabaseName("idx_bank_auth_agreement_expires_at");
 
                     b.HasIndex("InstitutionId");
 

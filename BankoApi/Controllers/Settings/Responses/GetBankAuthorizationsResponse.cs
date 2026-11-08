@@ -20,7 +20,19 @@ namespace BankoApi.Controllers.Settings.Responses
         public String? InstitutionLogoUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public int? DaysUntilExpiry { get; set; }
+        public bool RequiresReauthorization { get; set; }
+        public BankAuthorizationState AuthorizationState { get; set; }
         public List<BankAccountSummary> Accounts { get; set; } = new();
+    }
+
+    public enum BankAuthorizationState
+    {
+        Valid,
+        ExpiringSoon,
+        Expired,
+        Error
     }
 
     public class BankAccountSummary

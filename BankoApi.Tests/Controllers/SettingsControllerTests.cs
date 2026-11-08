@@ -68,7 +68,13 @@ public class SettingsControllerTests
         return user;
     }
 
-    private static HttpMessageHandler CreateUpsertEndUserAgreementHandler(string institutionId, string euaId, string requisitionId)
+    private static HttpMessageHandler CreateUpsertEndUserAgreementHandler(
+        string institutionId,
+        string euaId,
+        string requisitionId,
+        DateTime? created = null,
+        DateTime? accepted = null,
+        int accessValidForDays = 30)
     {
         var handlerMock = MockHelpers.CreateHandlerWithToken();
         handlerMock
@@ -84,12 +90,12 @@ public class SettingsControllerTests
                     new
                     {
                         id = euaId,
-                        created = DateTime.UtcNow,
+                        created = created ?? DateTime.UtcNow,
                         institution_id = institutionId,
                         max_historical_days = 30,
-                        access_valid_for_days = 30,
+                        access_valid_for_days = accessValidForDays,
                         access_scope = new[] { "balances", "transactions" },
-                        accepted = (DateTime?)null,
+                        accepted,
                         reconfirmation = false
                     },
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
@@ -1553,9 +1559,40 @@ public class SettingsControllerTests
     private static GoCardlessService CreateCallbackService(
         string requisitionId,
         IReadOnlyDictionary<Guid, string> accountsByIban,
-        string requisitionStatus = "LN")
+        string requisitionStatus = "LN",
+        string? agreementId = null,
+        DateTime? agreementCreated = null,
+        DateTime? agreementAccepted = null,
+        int accessValidForDays = 30)
     {
         var handlerMock = MockHelpers.CreateHandlerWithToken();
+
+        if (agreementId != null)
+        {
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(r =>
+                        r.RequestUri != null && r.RequestUri.AbsolutePath.EndsWith($"agreements/enduser/{agreementId}/")),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(
+                        new
+                        {
+                            id = agreementId,
+                            created = agreementCreated ?? DateTime.UtcNow,
+                            institution_id = "TEST_BANK",
+                            max_historical_days = 30,
+                            access_valid_for_days = accessValidForDays,
+                            access_scope = new[] { "balances", "transactions" },
+                            accepted = agreementAccepted,
+                            reconfirmation = false
+                        },
+                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+                });
+        }
 
         handlerMock
             .Protected()
@@ -1625,5 +1662,173 @@ public class SettingsControllerTests
         }
 
         return MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+    }
+
+    [Fact]
+    public async Task UpsertEndUserAgreement_StoresAgreementLifecycle()
+    {
+        using var ctx = CreateContext();
+        AddUser(ctx, TestUserId);
+        var created = DateTime.UtcNow.AddMinutes(-1);
+        var controller = CreateController(
+            ctx,
+            MockHelpers.CreateGoCardlessServiceWithHandler(
+                CreateUpsertEndUserAgreementHandler("TEST_BANK", "eua-life", "req-life", created: created, accessValidForDays: 30)),
+            TestUserId);
+
+        var result = await controller.UpsertEndUserAgreement(new UpsertEndUserAgreementRequest
+        {
+            InstitutionId = "TEST_BANK",
+            DaysOfAccess = 30
+        });
+
+        Assert.IsType<OkObjectResult>(result);
+        var saved = Assert.Single(ctx.BankAuthorizations);
+        Assert.Equal(created, saved.AgreementCreatedAt);
+        Assert.Null(saved.AgreementAcceptedAt);
+        Assert.Equal(30, saved.AccessValidForDays);
+        Assert.Equal(created.AddDays(30), saved.AgreementExpiresAt);
+        Assert.NotNull(saved.LastStatusCheckAt);
+    }
+
+    [Fact]
+    public async Task BankAuthCallback_Linked_StoresAcceptedAgreementLifecycle()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        AddUser(ctx, userId);
+        var authId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var created = DateTime.UtcNow.AddDays(-2);
+        var accepted = DateTime.UtcNow.AddHours(-1);
+
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = authId,
+            UserId = userId,
+            RequisitionId = "req-eua",
+            AgreementId = "eua-eua",
+            Status = BankAuthorizationStaus.Processing,
+            CreatedAt = created,
+            UpdatedAt = created
+        });
+        ctx.SaveChanges();
+
+        var service = CreateCallbackService(
+            "req-eua",
+            new Dictionary<Guid, string> { [accountId] = "IBAN-EUA" },
+            agreementId: "eua-eua",
+            agreementCreated: created,
+            agreementAccepted: accepted,
+            accessValidForDays: 90);
+        var controller = CreateController(ctx, service, userId);
+
+        var result = await controller.BankAuthCallback(new BankAuthCallbackRequest { RequisitionId = "req-eua" });
+
+        Assert.IsType<OkObjectResult>(result);
+        var saved = ctx.BankAuthorizations.Find(authId)!;
+        Assert.Equal(accepted, saved.AgreementAcceptedAt);
+        Assert.Equal(90, saved.AccessValidForDays);
+        Assert.Equal(created.AddDays(90), saved.AgreementExpiresAt);
+        Assert.NotNull(saved.LastStatusCheckAt);
+    }
+
+    [Fact]
+    public async Task BankAuthCallback_ReplayWithMissingAcceptedDate_RefreshesLifecycle()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        AddUser(ctx, userId);
+        var authId = Guid.NewGuid();
+        var created = DateTime.UtcNow.AddDays(-2);
+        var accepted = DateTime.UtcNow.AddHours(-1);
+
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = authId,
+            UserId = userId,
+            RequisitionId = "req-replay-eua",
+            AgreementId = "eua-replay",
+            Status = BankAuthorizationStaus.Linked,
+            AgreementAcceptedAt = null,
+            CreatedAt = created,
+            UpdatedAt = created
+        });
+        ctx.SaveChanges();
+
+        var service = CreateCallbackService(
+            "req-replay-eua",
+            new Dictionary<Guid, string>(),
+            agreementId: "eua-replay",
+            agreementCreated: created,
+            agreementAccepted: accepted,
+            accessValidForDays: 90);
+        var controller = CreateController(ctx, service, userId);
+
+        var result = await controller.BankAuthCallback(new BankAuthCallbackRequest { RequisitionId = "req-replay-eua" });
+
+        Assert.IsType<OkObjectResult>(result);
+        var saved = ctx.BankAuthorizations.Find(authId)!;
+        Assert.Equal(accepted, saved.AgreementAcceptedAt);
+        Assert.Equal(created.AddDays(90), saved.AgreementExpiresAt);
+    }
+
+    [Fact]
+    public async Task GetBankAuthorization_ComputesAuthorizationStateFromExpiry()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        AddUser(ctx, userId);
+        var now = DateTime.UtcNow;
+
+        ctx.BankAuthorizations.AddRange(
+            new BankAuthorization
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Status = BankAuthorizationStaus.Linked,
+                AgreementExpiresAt = now.AddDays(30)
+            },
+            new BankAuthorization
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Status = BankAuthorizationStaus.Linked,
+                AgreementExpiresAt = now.AddDays(3)
+            },
+            new BankAuthorization
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Status = BankAuthorizationStaus.Linked,
+                AgreementExpiresAt = now.AddDays(-1)
+            },
+            new BankAuthorization
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Status = BankAuthorizationStaus.Error,
+                AgreementExpiresAt = now.AddDays(30)
+            });
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateController(ctx, userId: userId);
+        var result = await controller.GetBankAuthorization();
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<GetBankAuthorizationsResponse>(okResult.Value);
+
+        var valid = Assert.Single(response.BankAuthorizations, b => b.AuthorizationState == BankAuthorizationState.Valid);
+        Assert.False(valid.RequiresReauthorization);
+
+        var expiring = Assert.Single(response.BankAuthorizations, b => b.AuthorizationState == BankAuthorizationState.ExpiringSoon);
+        Assert.True(expiring.RequiresReauthorization);
+        Assert.Equal(3, expiring.DaysUntilExpiry);
+
+        var expired = Assert.Single(response.BankAuthorizations, b => b.AuthorizationState == BankAuthorizationState.Expired);
+        Assert.True(expired.RequiresReauthorization);
+
+        var error = Assert.Single(response.BankAuthorizations, b => b.AuthorizationState == BankAuthorizationState.Error);
+        Assert.True(error.RequiresReauthorization);
     }
 }
