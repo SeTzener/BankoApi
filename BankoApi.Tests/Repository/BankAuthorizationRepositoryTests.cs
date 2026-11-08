@@ -1,10 +1,21 @@
+using BankoApi.Data;
+using BankoApi.Data.Dao;
 using BankoApi.Repository;
 using BankoApi.Services.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankoApi.Tests.Repository;
 
 public class BankAuthorizationRepositoryTests
 {
+    private static BankoDbContext CreateContext()
+    {
+        var options = new DbContextOptionsBuilder<BankoDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new BankoDbContext(options);
+    }
+
     [Fact]
     public void HasValidNonAcceptedAgreement_NullResults_ReturnsNull()
     {
@@ -113,5 +124,111 @@ public class BankAuthorizationRepositoryTests
         var result = repo.HasValidNonAcceptedAgreement(agreements);
         Assert.NotNull(result);
         Assert.Equal("new-id", result.Id);
+    }
+
+    [Fact]
+    public async Task DeleteStaleProcessingAuthorizations_DeletesOnlyAbandonedRowsWithoutAccounts()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var staleId = Guid.NewGuid();
+        var recentId = Guid.NewGuid();
+        var linkedId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        ctx.BankAuthorizations.AddRange(
+            new BankAuthorization
+            {
+                Id = staleId,
+                UserId = userId,
+                Status = BankAuthorizationStaus.Processing,
+                CreatedAt = now.AddHours(-25),
+                UpdatedAt = now.AddHours(-25)
+            },
+            new BankAuthorization
+            {
+                Id = recentId,
+                UserId = userId,
+                Status = BankAuthorizationStaus.Processing,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new BankAuthorization
+            {
+                Id = linkedId,
+                UserId = userId,
+                Status = BankAuthorizationStaus.Linked,
+                CreatedAt = now.AddHours(-25),
+                UpdatedAt = now.AddHours(-25)
+            });
+        await ctx.SaveChangesAsync();
+
+        var repo = new BankAuthorizationRepository();
+        var removed = await repo.DeleteStaleProcessingAuthorizations(ctx, now.AddHours(-24));
+
+        Assert.Equal(1, removed);
+        var remaining = ctx.BankAuthorizations.Select(ba => ba.Id).ToList();
+        Assert.DoesNotContain(staleId, remaining);
+        Assert.Contains(recentId, remaining);
+        Assert.Contains(linkedId, remaining);
+    }
+
+    [Fact]
+    public async Task DeleteStaleProcessingAuthorizations_UsesUpdatedAtNotCreatedAt()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var renewalId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        // A renewal on an old connection refreshes UpdatedAt, so it must not be treated as stale.
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = renewalId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Processing,
+            CreatedAt = now.AddDays(-90),
+            UpdatedAt = now.AddMinutes(-5)
+        });
+        await ctx.SaveChangesAsync();
+
+        var repo = new BankAuthorizationRepository();
+        var removed = await repo.DeleteStaleProcessingAuthorizations(ctx, now.AddHours(-24));
+
+        Assert.Equal(0, removed);
+        Assert.Single(ctx.BankAuthorizations);
+    }
+
+    [Fact]
+    public async Task DeleteStaleProcessingAuthorizations_KeepsRowsThatOwnAccounts()
+    {
+        using var ctx = CreateContext();
+        var userId = Guid.NewGuid();
+        var authId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        ctx.BankAuthorizations.Add(new BankAuthorization
+        {
+            Id = authId,
+            UserId = userId,
+            Status = BankAuthorizationStaus.Processing,
+            CreatedAt = now.AddDays(-90),
+            UpdatedAt = now.AddDays(-2)
+        });
+        ctx.BankAccounts.Add(new BankAccount
+        {
+            Id = Guid.NewGuid(),
+            BankAuthorizationId = authId,
+            BankAccountId = Guid.NewGuid().ToString(),
+            CreatedAt = now.AddDays(-90),
+            UpdatedAt = now.AddDays(-90)
+        });
+        await ctx.SaveChangesAsync();
+
+        var repo = new BankAuthorizationRepository();
+        var removed = await repo.DeleteStaleProcessingAuthorizations(ctx, now.AddHours(-24));
+
+        Assert.Equal(0, removed);
+        Assert.Single(ctx.BankAuthorizations);
     }
 }
