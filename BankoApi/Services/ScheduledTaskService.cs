@@ -9,6 +9,9 @@ namespace BankoApi.Services;
 
 public class ScheduledTaskService : BackgroundService
 {
+    // TODO(push): add a daily EUA expiry step that sends a warning 7 days before
+    // AgreementExpiresAt and a notification when it expires.
+
     private readonly TimeSpan _executionTime = new(08, 00, 00);
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ScheduledTaskService> _logger;

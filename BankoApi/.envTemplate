@@ -3,3 +3,7 @@ DB_PASS=<db password>
 GOOGLE_CLOUD_IP=<0.0.0.0>
 GOCARDLESS_ID=<GoCardless secret ID for token>
 GOCARDLESS_KEY=<GoCardless secret key for token>
+# Base64 of the Firebase service account JSON (Firebase Console -> Project settings -> Service accounts)
+FIREBASE_SERVICE_ACCOUNT_BASE64=<base64 of the service account JSON>
+# Optional: absolute path to the same JSON instead of the base64 value
+# FIREBASE_SERVICE_ACCOUNT_PATH=/absolute/path/to/firebase-service-account.json

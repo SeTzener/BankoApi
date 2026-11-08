@@ -6,6 +6,7 @@ using BankoApi.Filters;
 using BankoApi.Logging;
 using BankoApi.Repository;
 using BankoApi.Services;
+using BankoApi.Services.Push;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,8 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<BankAuthorizationRepository>();
 builder.Services.AddScoped<TransactionsRepository>();
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddSingleton<IPushSender, FirebasePushSender>();
+builder.Services.AddScoped<PushNotificationService>();
 
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {

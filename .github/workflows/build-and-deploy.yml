@@ -27,6 +27,7 @@ jobs:
           echo "GOCARDLESS_ID=${{ secrets.GOCARDLESS_ID }}" >> .env
           echo "GOCARDLESS_KEY=${{ secrets.GOCARDLESS_KEY }}" >> .env
           echo "GOCARDLESS_ACCOUNT_ID=${{ secrets.GOCARDLESS_ACCOUNT_ID }}" >> .env
+          echo "FIREBASE_SERVICE_ACCOUNT_BASE64=${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}" >> .env
 
       # Verify the .env file (optional for debugging)
       - name: Verify .env File
@@ -67,6 +68,7 @@ jobs:
             GOCARDLESS_ID=${{ secrets.GOCARDLESS_ID }}
             GOCARDLESS_KEY=${{ secrets.GOCARDLESS_KEY }}
             GOCARDLESS_ACCOUNT_ID=${{ secrets.GOCARDLESS_ACCOUNT_ID }}
+            FIREBASE_SERVICE_ACCOUNT_BASE64=${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
             EOF
           
             echo "---- DEBUG ----"
