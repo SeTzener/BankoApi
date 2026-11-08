@@ -133,6 +133,12 @@ namespace BankoApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("ExpiryExpiredNotifiedFor")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiryWarningNotifiedFor")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("InstitutionId")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");

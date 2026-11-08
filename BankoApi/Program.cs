@@ -43,6 +43,7 @@ builder.Services.AddScoped<TransactionsRepository>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddSingleton<IPushSender, FirebasePushSender>();
 builder.Services.AddScoped<PushNotificationService>();
+builder.Services.AddScoped<IEuaExpiryNotificationService, EuaExpiryNotificationService>();
 
 builder.Services.AddDbContext<BankoDbContext>(options =>
 {
