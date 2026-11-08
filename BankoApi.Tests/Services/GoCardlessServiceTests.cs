@@ -83,6 +83,52 @@ public class GoCardlessServiceTests
     }
 
     [Fact]
+    public async Task GetTransactionsAsync_BadRequestWithExpiredEua_ThrowsEndUserAgreementException()
+    {
+        var accountId = Guid.NewGuid();
+        var agreementId = Guid.NewGuid();
+
+        var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    summary = $"End User Agreement (EUA) {agreementId} has expired",
+                    detail = "EUA was valid for 180 days and it expired at 2026-01-01 00:00:00+00:00. The end user must connect the account once more with new EUA and Requisition",
+                    status_code = 400
+                }))
+            });
+
+        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+
+        var exception = await Assert.ThrowsAsync<EndUserAgreementException>(() =>
+            service.GetTransactionsAsync(accountId));
+
+        Assert.Contains(agreementId.ToString(), exception.Message);
+    }
+
+    [Fact]
+    public async Task GetTransactionsAsync_UnauthorizedWithNonEuaError_ThrowsHttpRequestException()
+    {
+        var accountId = Guid.NewGuid();
+        var handlerMock = MockHelpers.CreateHandlerWithToken(_ =>
+            new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    summary = "Invalid token",
+                    detail = "The access token is invalid or expired",
+                    status_code = 401
+                }))
+            });
+
+        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            service.GetTransactionsAsync(accountId));
+    }
+
+    [Fact]
     public async Task GetTransactionsAsync_TransientServiceUnavailableThenSuccess_ReturnsTransactions()
     {
         var accountId = Guid.NewGuid();

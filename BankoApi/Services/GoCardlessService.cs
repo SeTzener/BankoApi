@@ -3,6 +3,7 @@ using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Services.Model;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace BankoApi.Services;
 
@@ -69,17 +70,61 @@ public class GoCardlessService
 
         var response = await SendWithTransientRetryAsync(() => _httpClient.GetAsync($"accounts/{accountId}/transactions/"));
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        if (!response.IsSuccessStatusCode)
         {
-            String errorResponse = response.Content.ReadAsStringAsync().Result;
-            if (errorResponse.Contains(EndUserAgreementExceptionMessages.Message))
+            var errorBody = await response.Content.ReadAsStringAsync();
+
+            // GoCardless reports an expired EUA with either 400 or 401 depending on the
+            // endpoint/version, and the validity period in the text is not always 90 days.
+            // Detect it from the payload instead of matching a single literal message.
+            if (IsEndUserAgreementExpired(errorBody))
             {
-                throw new EndUserAgreementException(errorResponse);
+                throw new EndUserAgreementException(errorBody);
             }
+
+            response.EnsureSuccessStatusCode();
         }
-        response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<Transactions>();
+    }
+
+    private bool IsEndUserAgreementExpired(string errorBody)
+    {
+        if (string.IsNullOrWhiteSpace(errorBody)) return false;
+
+        var text = errorBody;
+
+        // GoCardless normally returns JSON, but proxies and gateways can return HTML or
+        // plain text. Only try to parse when the body looks like a JSON object, and keep
+        // the raw body as the fallback if it turns out to be malformed.
+        if (errorBody.TrimStart().StartsWith('{'))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(errorBody);
+
+                if (document.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var summary = document.RootElement.TryGetProperty("summary", out var summaryElement)
+                        ? summaryElement.GetString()
+                        : null;
+                    var detail = document.RootElement.TryGetProperty("detail", out var detailElement)
+                        ? detailElement.GetString()
+                        : null;
+
+                    text = $"{summary} {detail}";
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogDebug(ex, "Could not parse the GoCardless error body as JSON; matching the raw body");
+            }
+        }
+
+        var mentionsAgreement = text.Contains("EUA", StringComparison.OrdinalIgnoreCase)
+                                || text.Contains("End User Agreement", StringComparison.OrdinalIgnoreCase);
+
+        return mentionsAgreement && text.Contains("expired", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<PaginatedEndUserAgreements> GetEndUserAgreement()
