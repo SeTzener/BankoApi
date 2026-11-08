@@ -68,6 +68,7 @@ public class ScheduledTaskService : BackgroundService
 
             var bankAccountIds = await userDbContext.BankAuthorizations.AsNoTracking().Where(ba => ba.UserId == userId)
                 .SelectMany(x => x.BankAccounts)
+                .Where(account => account.IsActive)
                 .Select(y => y.BankAccountId)
                 .ToListAsync();
 

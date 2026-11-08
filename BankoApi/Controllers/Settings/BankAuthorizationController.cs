@@ -70,7 +70,7 @@ namespace BankoApi.Controllers.Settings
                         InstitutionLogoUrl = it.Institution?.LogoUrl,
                         CreatedAt = it.CreatedAt,
                         UpdatedAt = it.UpdatedAt,
-                        Accounts = it.BankAccounts?.ToList().ConvertAll(acc => new BankAccountSummary()
+                        Accounts = it.BankAccounts?.Where(acc => acc.IsActive).ToList().ConvertAll(acc => new BankAccountSummary()
                         {
                             BankAccountId = acc.BankAccountId,
                             Iban = acc.Iban,
@@ -191,6 +191,11 @@ namespace BankoApi.Controllers.Settings
                 .FirstOrDefaultAsync(ba => ba.UserId == userId && ba.InstitutionId == institutionId)
                 ?? new BankAuthorization { UserId = userId };
 
+            // NOTE: A renewal attempt overwrites the active agreement/requisition before the user
+            // completes the bank SCA flow. If the user abandons that flow, the previous agreement's
+            // expiry is lost and this row stays Processing. This is a known limitation: if it becomes
+            // a real problem, track renewal attempts in separate Pending* fields and promote them to
+            // the active agreement only after the callback succeeds.
             authorization.RequisitionId = requisition.Id;
             authorization.AgreementId = requisition.Agreement;
             authorization.ReferenceId = requisition.Reference;
@@ -221,6 +226,7 @@ namespace BankoApi.Controllers.Settings
         {
             var userId = User.GetUserId();
             var authorization = await _dbContext.BankAuthorizations
+                .Include(ba => ba.BankAccounts)
                 .FirstOrDefaultAsync(ba => ba.RequisitionId == request.RequisitionId && ba.UserId == userId);
 
             if (authorization == null)
@@ -229,6 +235,14 @@ namespace BankoApi.Controllers.Settings
                 {
                     Message = BankAuthorizationErrorMessages.NoAuthorizationFound.ToString()
                 });
+            }
+
+            // The callback can be replayed (e.g. after a lost response), so make it idempotent.
+            // Every renewal sets the row back to Processing, so Linked here means this
+            // requisition was already fully processed.
+            if (authorization.Status == BankAuthorizationStaus.Linked)
+            {
+                return Ok(BuildCallbackResponse(authorization));
             }
 
             var requisition = await _goCardlessService.GetRequisitionAsync(request.RequisitionId);
@@ -245,7 +259,9 @@ namespace BankoApi.Controllers.Settings
                 });
             }
 
-            var linkedAccounts = new List<LinkedBankAccount>();
+            var existingAccounts = (authorization.BankAccounts ?? new List<BankAccount>())
+                .ToDictionary(account => account.BankAccountId, StringComparer.Ordinal);
+            var returnedAccountIds = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var gcAccountId in requisition.Accounts)
             {
@@ -253,29 +269,29 @@ namespace BankoApi.Controllers.Settings
 
                 var details = await _goCardlessService.GetAccountDetailsAsync(accountId);
 
-                var bankAccount = new BankAccount
+                // Upsert by (BankAuthorizationId, BankAccountId): re-authorization returns the
+                // same GoCardless account IDs, so blindly adding would violate the unique index.
+                if (!existingAccounts.TryGetValue(gcAccountId, out var bankAccount))
                 {
-                    BankAuthorizationId = authorization.Id,
-                    BankAccountId = gcAccountId,
-                    Iban = details?.Iban,
-                    Bban = details?.Bban,
-                    Currency = details?.Currency,
-                    OwnerName = details?.OwnerName,
-                    Product = details?.Product,
-                    AccountName = details?.DisplayName ?? details?.Name
-                };
+                    bankAccount = new BankAccount
+                    {
+                        BankAuthorizationId = authorization.Id,
+                        BankAccountId = gcAccountId
+                    };
+                    _dbContext.BankAccounts.Add(bankAccount);
+                    existingAccounts[gcAccountId] = bankAccount;
+                }
 
-                _dbContext.BankAccounts.Add(bankAccount);
+                bankAccount.Iban = details?.Iban;
+                bankAccount.Bban = details?.Bban;
+                bankAccount.Currency = details?.Currency;
+                bankAccount.OwnerName = details?.OwnerName;
+                bankAccount.Product = details?.Product;
+                bankAccount.AccountName = details?.DisplayName ?? details?.Name;
+                bankAccount.IsActive = true;
+                bankAccount.UpdatedAt = DateTime.UtcNow;
 
-                linkedAccounts.Add(new LinkedBankAccount
-                {
-                    BankAccountId = gcAccountId,
-                    Iban = details?.Iban,
-                    Currency = details?.Currency,
-                    OwnerName = details?.OwnerName,
-                    AccountName = details?.DisplayName ?? details?.Name,
-                    Product = details?.Product
-                });
+                returnedAccountIds.Add(gcAccountId);
 
                 try
                 {
@@ -295,16 +311,39 @@ namespace BankoApi.Controllers.Settings
                 }
             }
 
+            // Accounts the bank no longer returns are kept for history but stop being fetched.
+            foreach (var removedAccount in existingAccounts.Values.Where(account => !returnedAccountIds.Contains(account.BankAccountId)))
+            {
+                removedAccount.IsActive = false;
+                removedAccount.UpdatedAt = DateTime.UtcNow;
+            }
+
             authorization.Status = BankAuthorizationStaus.Linked;
             authorization.UpdatedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync();
 
-            return Ok(new BankAuthCallbackResponse
+            return Ok(BuildCallbackResponse(authorization));
+        }
+
+        private static BankAuthCallbackResponse BuildCallbackResponse(BankAuthorization authorization)
+        {
+            return new BankAuthCallbackResponse
             {
                 BankAuthorizationId = authorization.Id,
                 Status = authorization.Status,
-                LinkedAccounts = linkedAccounts
-            });
+                LinkedAccounts = (authorization.BankAccounts ?? new List<BankAccount>())
+                    .Where(account => account.IsActive)
+                    .Select(account => new LinkedBankAccount
+                    {
+                        BankAccountId = account.BankAccountId,
+                        Iban = account.Iban,
+                        Currency = account.Currency,
+                        OwnerName = account.OwnerName,
+                        AccountName = account.AccountName,
+                        Product = account.Product
+                    })
+                    .ToList()
+            };
         }
 
         [AllowAnonymous]

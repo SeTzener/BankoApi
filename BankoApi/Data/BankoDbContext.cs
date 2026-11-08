@@ -174,6 +174,9 @@ public class BankoDbContext : DbContext
             entity.HasIndex(e => e.BankAuthorizationId)
                   .HasDatabaseName("idx_bank_accounts_connection_id");
 
+            entity.Property(e => e.IsActive)
+                  .HasDefaultValue(true);
+
             // Define the relationship with GoCardlessConnection
             entity.HasOne(e => e.BankAuthorization)
                   .WithMany(c => c.BankAccounts)

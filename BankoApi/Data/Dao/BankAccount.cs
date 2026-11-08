@@ -38,6 +38,10 @@ public class BankAccount
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // False when the account is no longer returned by the bank on re-authorization.
+    // Inactive accounts stop being fetched from GoCardless but keep their cached transactions.
+    public bool IsActive { get; set; } = true;
+
     // Navigation Property
     [ForeignKey("BankAuthorizationId")]
     public virtual BankAuthorization BankAuthorization { get; set; }

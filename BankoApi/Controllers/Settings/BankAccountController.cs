@@ -87,6 +87,9 @@ namespace BankoApi.Controllers.Settings
             if (request.AccountName != null)
                 account.AccountName = request.AccountName;
 
+            // An explicit upsert means the account is in use again.
+            account.IsActive = true;
+
             if (account.Id == Guid.Empty)
             {
                 _dbContext.Add(account);
