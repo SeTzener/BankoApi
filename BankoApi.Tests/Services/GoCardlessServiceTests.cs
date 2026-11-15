@@ -369,4 +369,49 @@ public class GoCardlessServiceTests
         Assert.Equal("TEST_BANK", result.InstitutionId);
         Assert.Equal("agreement-1", result.Agreement);
     }
+
+    [Fact]
+    public async Task CreateRequisition_RedirectsThroughHttpsBouncePage()
+    {
+        string? requestBody = null;
+
+        var requisitionResponse = new
+        {
+            id = "req-1",
+            status = "CR",
+            institution_id = "TEST_BANK",
+            agreement = "agreement-1",
+            link = "https://bank.link",
+            accounts = Array.Empty<string>()
+        };
+
+        var handlerMock = MockHelpers.CreateHandlerWithToken(request =>
+        {
+            requestBody = request.Content?
+                .ReadAsStringAsync()
+                .GetAwaiter()
+                .GetResult();
+
+            return new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(requisitionResponse,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            };
+        });
+
+        var service = MockHelpers.CreateGoCardlessServiceWithHandler(handlerMock.Object);
+        await service.CreateRequisition("TEST_BANK", "agreement-1");
+
+        Assert.NotNull(requestBody);
+
+        var form = requestBody!
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(pair => pair.Split('=', 2))
+            .ToDictionary(
+                parts => Uri.UnescapeDataString(parts[0]),
+                parts => parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : string.Empty);
+
+        Assert.Equal("https://api.example.com/bank-auth-return.html", form["redirect"]);
+        Assert.Equal("true", form["redirect_immediate"]);
+    }
 }

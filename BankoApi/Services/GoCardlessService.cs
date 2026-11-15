@@ -1,6 +1,7 @@
 using BankoApi.Data.Dao;
 using BankoApi.Exceptions.GoCardless.Transactions;
 using BankoApi.Services.Model;
+using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -20,16 +21,30 @@ public class GoCardlessService
         HttpStatusCode.TooManyRequests
     };
 
+    private const string DefaultPublicBaseUrl = "https://www.bankoapi.space";
+    private const string BankAuthReturnPath = "/bank-auth-return.html";
+
     private readonly HttpClient _httpClient;
     private readonly GoCardlessTokenService _tokenService;
-    private ILogger<GoCardlessService> _logger;
+    private readonly ILogger<GoCardlessService> _logger;
+    private readonly string _bankAuthReturnUrl;
 
     public GoCardlessService(HttpClient httpClient, GoCardlessTokenService tokenService,
-        ILogger<GoCardlessService> logger)
+        ILogger<GoCardlessService> logger, IConfiguration configuration)
     {
         _httpClient = httpClient;
         _tokenService = tokenService;
         _logger = logger;
+
+        // GoCardless redirects the browser with an HTTP redirect. Embedded
+        // WebViews (notably WKWebView) reject an HTTP redirect straight to a
+        // custom scheme, so the redirect points at an HTTPS page that then
+        // navigates to banko:// from JavaScript, which WebViews allow.
+        var publicBaseUrl = configuration["Banko:PublicBaseUrl"];
+        if (string.IsNullOrWhiteSpace(publicBaseUrl))
+            publicBaseUrl = DefaultPublicBaseUrl;
+
+        _bankAuthReturnUrl = publicBaseUrl.TrimEnd('/') + BankAuthReturnPath;
     }
 
     private async Task<HttpResponseMessage> SendWithTransientRetryAsync(Func<Task<HttpResponseMessage>> sendAsync)
@@ -209,7 +224,7 @@ public class GoCardlessService
 
         var formData = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            { "redirect", "Banko://bank-auth-callback" },
+            { "redirect", _bankAuthReturnUrl },
             { "redirect_immediate", "true" },
             { "institution_id", institutionId },
             { "agreement", agreementId },

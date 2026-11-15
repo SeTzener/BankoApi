@@ -74,7 +74,14 @@ public static class MockHelpers
         var tokenLoggerMock = new Mock<ILogger<GoCardlessTokenService>>();
         var tokenService = new GoCardlessTokenService(tokenHttpClient, configMock.Object, tokenLoggerMock.Object);
 
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Banko:PublicBaseUrl"] = "https://api.example.com"
+            })
+            .Build();
+
         var serviceLoggerMock = new Mock<ILogger<GoCardlessService>>();
-        return new GoCardlessService(httpClient, tokenService, serviceLoggerMock.Object);
+        return new GoCardlessService(httpClient, tokenService, serviceLoggerMock.Object, config);
     }
 }
